@@ -7,8 +7,9 @@
     "icon": "./assets/images/icon.png",
     "scheme": "seedslifeskills",
     "userInterfaceStyle": "automatic",
+    
     "ios": {
-      "icon": "./assets/expo.icon"
+      "supportsTablet": true
     },
     "android": {
       "adaptiveIcon": {
@@ -17,6 +18,7 @@
         "backgroundImage": "./assets/images/android-icon-background.png",
         "monochromeImage": "./assets/images/android-icon-monochrome.png"
       },
+      
       "predictiveBackGestureEnabled": false
     },
     "web": {
@@ -28,16 +30,29 @@
       [
         "expo-splash-screen",
         {
-          "backgroundColor": "#208AEF",
           "image": "./assets/images/splash-icon.png",
-          "imageWidth": 76
+          "imageWidth": 200,
+          "resizeMode": "contain",
+          "backgroundColor": "#ffffff",
+          "dark": {
+            "backgroundColor": "#000000"
+          }
         }
       ],
-      "@react-native-community/datetimepicker"
+      "expo-font",
+      "expo-image",
+      "expo-status-bar",
+      "expo-web-browser"
     ],
     "experiments": {
       "typedRoutes": true,
       "reactCompiler": true
+    },
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "99414f2c-e7aa-44d4-8228-d64d0aafff99"
+      }
     }
   }
 }
