@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
+
 import {
   ScrollView,
   StyleSheet,
@@ -7,12 +8,25 @@ import {
   TextInput,
   Pressable,
   Alert,
+  ActivityIndicator,
 } from 'react-native';
+
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 
 import ScreenContainer from '../../components/ScreenContainer';
-import { skills } from '../../data/skills';
+
+import {
+  collection,
+  addDoc,
+  getDocs,
+  query,
+  orderBy,
+  serverTimestamp,
+} from 'firebase/firestore';
+
+import { db } from '../../lib/firebase';
+
 
 const ratings = [
   { label: 'Very hard', emoji: '😣' },
@@ -22,10 +36,19 @@ const ratings = [
   { label: 'Great', emoji: '😄' },
 ];
 
-const statuses = ['Practicing', 'Completed', 'Needs Help'];
+
+const statuses = [
+  'Practicing',
+  'Completed',
+  'Needs Help',
+];
+
 
 export default function PracticeLogScreen() {
+
   const [selectedSkill, setSelectedSkill] = useState('');
+  const [selectedSkillId, setSelectedSkillId] = useState('');
+
   const [selectedStatus, setSelectedStatus] = useState('');
   const [selectedRating, setSelectedRating] = useState('');
   const [comments, setComments] = useState('');
@@ -33,188 +56,552 @@ export default function PracticeLogScreen() {
   const [showSkills, setShowSkills] = useState(false);
   const [showStatuses, setShowStatuses] = useState(false);
 
+  const [skills, setSkills] = useState([]);
   const [logs, setLogs] = useState([]);
 
-  const today = new Date().toLocaleDateString('en-US', {
-    month: 'short',
-    day: 'numeric',
-    year: 'numeric',
-  });
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
 
-  const saveLog = () => {
-    if (!selectedSkill) {
-      Alert.alert('Select a skill', 'Please select the skill that was practiced.');
-      return;
+
+  const today = new Date().toLocaleDateString(
+    'en-US',
+    {
+      month: 'short',
+      day: 'numeric',
+      year: 'numeric',
     }
+  );
 
-    if (!selectedStatus) {
-      Alert.alert('Select a status', 'Please select a practice status.');
-      return;
-    }
 
-    if (!selectedRating) {
-      Alert.alert('Add a rating', 'Please tell us how the practice went.');
-      return;
-    }
+  // -----------------------------------------
+  // Load skills and existing practice logs
+  // -----------------------------------------
 
-    const newLog = {
-      id: Date.now().toString(),
-      date: today,
-      skill: selectedSkill,
-      status: selectedStatus,
-      rating: selectedRating,
-      comments: comments.trim(),
+  useEffect(() => {
+
+    const loadData = async () => {
+
+      try {
+
+        setLoading(true);
+
+
+        // ---------------------------
+        // Load skills from Firebase
+        // ---------------------------
+
+        const skillsSnapshot =
+          await getDocs(
+            collection(db, 'skills')
+          );
+
+
+        const loadedSkills =
+          skillsSnapshot.docs
+            .map((skillDoc) => ({
+              id: skillDoc.id,
+              ...skillDoc.data(),
+            }))
+            .filter(
+              (skill) =>
+                skill.active !== false
+            );
+
+
+        loadedSkills.sort(
+          (a, b) =>
+            (a.order ?? 999) -
+            (b.order ?? 999)
+        );
+
+
+        setSkills(loadedSkills);
+
+
+        // ---------------------------
+        // Load Practice Logs
+        // ---------------------------
+
+        const logsQuery = query(
+          collection(db, 'practiceLog'),
+          orderBy('createdAt', 'desc')
+        );
+
+
+        const logsSnapshot =
+          await getDocs(logsQuery);
+
+
+        const loadedLogs =
+          logsSnapshot.docs.map(
+            (logDoc) => {
+
+              const data = logDoc.data();
+
+              return {
+                id: logDoc.id,
+                ...data,
+              };
+
+            }
+          );
+
+
+        setLogs(loadedLogs);
+
+
+      } catch (error) {
+
+        console.error(
+          'Error loading practice log:',
+          error
+        );
+
+        Alert.alert(
+          'Error',
+          'Could not load the practice log.'
+        );
+
+
+      } finally {
+
+        setLoading(false);
+
+      }
+
     };
 
-    setLogs((current) => [newLog, ...current]);
 
-    setSelectedSkill('');
-    setSelectedStatus('');
-    setSelectedRating('');
-    setComments('');
-    setShowSkills(false);
-    setShowStatuses(false);
+    loadData();
+
+  }, []);
+
+
+  // -----------------------------------------
+  // Save Practice Log
+  // -----------------------------------------
+
+  const saveLog = async () => {
+
+    if (!selectedSkill) {
+
+      Alert.alert(
+        'Select a skill',
+        'Please select the skill that was practiced.'
+      );
+
+      return;
+
+    }
+
+
+    if (!selectedStatus) {
+
+      Alert.alert(
+        'Select a status',
+        'Please select a practice status.'
+      );
+
+      return;
+
+    }
+
+
+    if (!selectedRating) {
+
+      Alert.alert(
+        'Add a rating',
+        'Please tell us how the practice went.'
+      );
+
+      return;
+
+    }
+
+
+    try {
+
+      setSaving(true);
+
+
+      const newLog = {
+
+        date: today,
+
+        skill: selectedSkill,
+
+        skillId: selectedSkillId,
+
+        status: selectedStatus,
+
+        rating: selectedRating,
+
+        comments: comments.trim(),
+
+        createdAt: serverTimestamp(),
+
+      };
+
+
+      const docRef = await addDoc(
+        collection(db, 'practiceLog'),
+        newLog
+      );
+
+
+      // Add immediately to the screen
+      setLogs((current) => [
+
+        {
+          id: docRef.id,
+          ...newLog,
+
+          // createdAt is still being resolved by
+          // Firebase, so the displayed date is
+          // already available from "date".
+        },
+
+        ...current,
+
+      ]);
+
+
+      // Clear the form
+      setSelectedSkill('');
+      setSelectedSkillId('');
+
+      setSelectedStatus('');
+      setSelectedRating('');
+      setComments('');
+
+      setShowSkills(false);
+      setShowStatuses(false);
+
+
+      Alert.alert(
+        'Saved',
+        'Practice log saved successfully.'
+      );
+
+
+    } catch (error) {
+
+      console.error(
+        'Error saving practice log:',
+        error
+      );
+
+
+      Alert.alert(
+        'Error',
+        'Could not save the practice log.'
+      );
+
+
+    } finally {
+
+      setSaving(false);
+
+    }
+
   };
 
+
+  // -----------------------------------------
+  // Screen
+  // -----------------------------------------
+
   return (
+
     <ScreenContainer>
+
       <ScrollView
         style={styles.page}
         contentContainerStyle={styles.content}
         keyboardShouldPersistTaps="handled"
       >
+
         {/* Header */}
+
         <View style={styles.header}>
-          <Pressable style={styles.backButton} onPress={() => router.back()}>
-            <Ionicons name="chevron-back" size={26} color="#168CE8" />
-            <Text style={styles.backText}>Back</Text>
+
+          <Pressable
+            style={styles.backButton}
+            onPress={() => router.back()}
+          >
+
+            <Ionicons
+              name="chevron-back"
+              size={26}
+              color="#168CE8"
+            />
+
+            <Text style={styles.backText}>
+              Back
+            </Text>
+
           </Pressable>
 
-          <Text style={styles.headerTitle}>Practice Log</Text>
+
+          <Text style={styles.headerTitle}>
+            Practice Log
+          </Text>
+
 
           <View style={styles.headerSpacer} />
+
         </View>
+
 
         <Text style={styles.headerSubtitle}>
           Track progress and practice attempts.
         </Text>
 
+
         {/* Add Practice Log */}
+
         <View style={styles.formCard}>
-          <Text style={styles.sectionTitle}>Add a Practice Log</Text>
+
+          <Text style={styles.sectionTitle}>
+            Add a Practice Log
+          </Text>
+
 
           {/* Date */}
-          <Text style={styles.label}>Date</Text>
+
+          <Text style={styles.label}>
+            Date
+          </Text>
+
+
           <View style={styles.inputBox}>
-            <Text style={styles.inputText}>{today}</Text>
-            <Ionicons name="calendar-outline" size={22} color="#69778A" />
-          </View>
 
-          {/* Skill */}
-          <Text style={styles.label}>Skill</Text>
-
-          <Pressable
-            style={styles.inputBox}
-            onPress={() => setShowSkills(!showSkills)}
-          >
-            <Text
-              style={[
-                styles.inputText,
-                !selectedSkill && styles.placeholder,
-              ]}
-            >
-              {selectedSkill || 'Select a skill'}
+            <Text style={styles.inputText}>
+              {today}
             </Text>
 
             <Ionicons
-              name={showSkills ? 'chevron-up' : 'chevron-down'}
+              name="calendar-outline"
               size={22}
               color="#69778A"
             />
+
+          </View>
+
+
+          {/* Skill */}
+
+          <Text style={styles.label}>
+            Skill
+          </Text>
+
+
+          <Pressable
+            style={styles.inputBox}
+            onPress={() =>
+              setShowSkills(!showSkills)
+            }
+          >
+
+            <Text
+              style={[
+                styles.inputText,
+                !selectedSkill &&
+                  styles.placeholder,
+              ]}
+            >
+              {selectedSkill ||
+                'Select a skill'}
+            </Text>
+
+
+            <Ionicons
+              name={
+                showSkills
+                  ? 'chevron-up'
+                  : 'chevron-down'
+              }
+              size={22}
+              color="#69778A"
+            />
+
           </Pressable>
 
+
           {showSkills && (
+
             <View style={styles.dropdown}>
+
               {skills.map((skill) => (
+
                 <Pressable
                   key={skill.id}
                   style={styles.dropdownItem}
                   onPress={() => {
-                    setSelectedSkill(skill.title);
+
+                    setSelectedSkill(
+                      skill.title
+                    );
+
+                    setSelectedSkillId(
+                      skill.id
+                    );
+
                     setShowSkills(false);
+
                   }}
                 >
-                  <Text style={styles.dropdownText}>{skill.title}</Text>
+
+                  <Text
+                    style={styles.dropdownText}
+                  >
+                    {skill.title}
+                  </Text>
+
                 </Pressable>
+
               ))}
+
             </View>
+
           )}
 
+
           {/* Status */}
-          <Text style={styles.label}>Status</Text>
+
+          <Text style={styles.label}>
+            Status
+          </Text>
+
 
           <Pressable
             style={styles.inputBox}
-            onPress={() => setShowStatuses(!showStatuses)}
+            onPress={() =>
+              setShowStatuses(
+                !showStatuses
+              )
+            }
           >
+
             <Text
               style={[
                 styles.inputText,
-                !selectedStatus && styles.placeholder,
+                !selectedStatus &&
+                  styles.placeholder,
               ]}
             >
-              {selectedStatus || 'Select a status'}
+
+              {selectedStatus ||
+                'Select a status'}
+
             </Text>
 
+
             <Ionicons
-              name={showStatuses ? 'chevron-up' : 'chevron-down'}
+              name={
+                showStatuses
+                  ? 'chevron-up'
+                  : 'chevron-down'
+              }
               size={22}
               color="#69778A"
             />
+
           </Pressable>
 
+
           {showStatuses && (
+
             <View style={styles.dropdown}>
+
               {statuses.map((status) => (
+
                 <Pressable
                   key={status}
                   style={styles.dropdownItem}
                   onPress={() => {
-                    setSelectedStatus(status);
+
+                    setSelectedStatus(
+                      status
+                    );
+
                     setShowStatuses(false);
+
                   }}
                 >
-                  <Text style={styles.dropdownText}>{status}</Text>
+
+                  <Text
+                    style={styles.dropdownText}
+                  >
+                    {status}
+                  </Text>
+
                 </Pressable>
+
               ))}
+
             </View>
+
           )}
 
+
           {/* Rating */}
-          <Text style={styles.label}>How did it go?</Text>
+
+          <Text style={styles.label}>
+            How did it go?
+          </Text>
+
 
           <View style={styles.ratingRow}>
+
             {ratings.map((rating) => {
-              const selected = selectedRating === rating.label;
+
+              const selected =
+                selectedRating ===
+                rating.label;
+
 
               return (
+
                 <Pressable
                   key={rating.label}
                   style={[
                     styles.ratingButton,
-                    selected && styles.ratingSelected,
+                    selected &&
+                      styles.ratingSelected,
                   ]}
-                  onPress={() => setSelectedRating(rating.label)}
+                  onPress={() =>
+                    setSelectedRating(
+                      rating.label
+                    )
+                  }
                 >
-                  <Text style={styles.emoji}>{rating.emoji}</Text>
-                  <Text style={styles.ratingText}>{rating.label}</Text>
+
+                  <Text style={styles.emoji}>
+                    {rating.emoji}
+                  </Text>
+
+                  <Text
+                    style={styles.ratingText}
+                  >
+                    {rating.label}
+                  </Text>
+
                 </Pressable>
+
               );
+
             })}
+
           </View>
 
+
           {/* Comments */}
-          <Text style={styles.label}>Comments</Text>
+
+          <Text style={styles.label}>
+            Comments
+          </Text>
+
 
           <TextInput
             style={styles.commentBox}
@@ -227,63 +614,175 @@ export default function PracticeLogScreen() {
             textAlignVertical="top"
           />
 
+
           <Text style={styles.characterCount}>
             {comments.length}/500
           </Text>
 
+
           {/* Save */}
-          <Pressable style={styles.saveButton} onPress={saveLog}>
-            <Text style={styles.saveButtonText}>Save Log</Text>
+
+          <Pressable
+            style={[
+              styles.saveButton,
+              saving &&
+                styles.saveButtonDisabled,
+            ]}
+            onPress={saveLog}
+            disabled={saving}
+          >
+
+            {saving ? (
+
+              <ActivityIndicator
+                color="#FFFFFF"
+              />
+
+            ) : (
+
+              <Text
+                style={styles.saveButtonText}
+              >
+                Save Log
+              </Text>
+
+            )}
+
           </Pressable>
+
         </View>
 
-        {/* Recent Logs */}
-        <Text style={styles.recentTitle}>Recent Logs</Text>
 
-        {logs.length === 0 ? (
+        {/* Recent Logs */}
+
+        <Text style={styles.recentTitle}>
+          Recent Logs
+        </Text>
+
+
+        {loading ? (
+
           <View style={styles.emptyCard}>
+
+            <ActivityIndicator size="large" />
+
+            <Text style={styles.emptyText}>
+              Loading practice logs...
+            </Text>
+
+          </View>
+
+        ) : logs.length === 0 ? (
+
+          <View style={styles.emptyCard}>
+
             <Ionicons
               name="clipboard-outline"
               size={34}
               color="#9AA7B5"
             />
-            <Text style={styles.emptyTitle}>No practice logs yet</Text>
-            <Text style={styles.emptyText}>
-              Your saved practice attempts will appear here.
+
+
+            <Text style={styles.emptyTitle}>
+              No practice logs yet
             </Text>
+
+
+            <Text style={styles.emptyText}>
+              Your saved practice attempts
+              will appear here.
+            </Text>
+
           </View>
+
         ) : (
+
           logs.map((log) => (
-            <View key={log.id} style={styles.logCard}>
+
+            <View
+              key={log.id}
+              style={styles.logCard}
+            >
+
               <View style={styles.logDate}>
-                <Text style={styles.logDateText}>{log.date}</Text>
+
+                <Text
+                  style={styles.logDateText}
+                >
+                  {log.date}
+                </Text>
+
               </View>
+
 
               <View style={styles.logDetails}>
-                <Text style={styles.logSkill}>{log.skill}</Text>
 
-                <Text style={styles.logRating}>
-                  {ratings.find((r) => r.label === log.rating)?.emoji}{' '}
-                  {log.rating}
+                <Text style={styles.logSkill}>
+                  {log.skill}
                 </Text>
 
-                <Text style={styles.logStatus}>
-                  Status: {log.status}
-                </Text>
+
+                {!!log.rating && (
+
+                  <Text
+                    style={styles.logRating}
+                  >
+
+                    {
+                      ratings.find(
+                        (r) =>
+                          r.label ===
+                          log.rating
+                      )?.emoji
+                    }{' '}
+
+                    {log.rating}
+
+                  </Text>
+
+                )}
+
+
+                {!!log.status && (
+
+                  <Text
+                    style={styles.logStatus}
+                  >
+                    Status: {log.status}
+                  </Text>
+
+                )}
+
 
                 {!!log.comments && (
-                  <Text style={styles.logComments}>{log.comments}</Text>
+
+                  <Text
+                    style={styles.logComments}
+                  >
+                    {log.comments}
+                  </Text>
+
                 )}
+
               </View>
+
             </View>
+
           ))
+
         )}
+
       </ScrollView>
+
     </ScreenContainer>
+
   );
+
 }
 
+
 const styles = StyleSheet.create({
+
   page: {
     flex: 1,
     backgroundColor: '#EEF8FF',
@@ -454,6 +953,10 @@ const styles = StyleSheet.create({
     marginTop: 12,
   },
 
+  saveButtonDisabled: {
+    opacity: 0.7,
+  },
+
   saveButtonText: {
     color: '#FFFFFF',
     fontSize: 18,
@@ -485,7 +988,7 @@ const styles = StyleSheet.create({
   emptyText: {
     fontSize: 14,
     color: '#7A8495',
-    marginTop: 5,
+    marginTop: 8,
     textAlign: 'center',
   },
 
@@ -540,4 +1043,5 @@ const styles = StyleSheet.create({
     marginTop: 7,
     lineHeight: 19,
   },
+
 });

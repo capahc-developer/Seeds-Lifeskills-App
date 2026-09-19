@@ -12,12 +12,12 @@ import { getStorage } from "firebase/storage";
 
 // Your web app's Firebase configuration
 const firebaseConfig = {
-  apiKey: "AIzaSyBjep2PWCgmOpuIiQur8Iscl-QIrwBLCnw",
-  authDomain: "seeds-mobile-app-v2-c15eb.firebaseapp.com",
-  projectId: "seeds-mobile-app-v2-c15eb",
-  storageBucket: "seeds-mobile-app-v2-c15eb.firebasestorage.app",
-  messagingSenderId: "471262071869",
-  appId: "1:471262071869:web:144c0640949a6b3a11ee54"
+  apiKey: "AIzaSyB-vKhIKVTPEybCVFT0PkOAUtNOxgs7Yzw",
+  authDomain: "seeds-life-skills.firebaseapp.com",
+  projectId: "seeds-life-skills",
+  storageBucket: "seeds-life-skills.firebasestorage.app",
+  messagingSenderId: "831460812957",
+  appId: "1:831460812957:web:5d639da68b12d03b110c74"
 };
 
 // Initialize Firebase
