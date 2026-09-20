@@ -4,10 +4,7 @@
     "strict": true,
     "paths": {
       "@/*": [
-        "./src/*"
-      ],
-      "@/assets/*": [
-        "./assets/*"
+        "./*"
       ]
     }
   },
@@ -16,5 +13,5 @@
     "**/*.tsx",
     ".expo/types/**/*.ts",
     "expo-env.d.ts"
-  ]
+, "app/(tabs)/explore.jsx", "app/(tabs)/_layout.jsx", "app/index.jsx", "app/_layout.jsx", "app/modal.jsx", "data/skills.js", "constants/theme.ts"  ]
 }
