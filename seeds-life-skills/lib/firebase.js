@@ -1,17 +1,21 @@
-// Import the functions you need from the SDKs you need
-import { initializeApp } from "firebase/app";
-// TODO: Add SDKs for Firebase products that you want to use
-// https://firebase.google.com/docs/web/setup#available-libraries
+import { getApp, getApps, initializeApp } from "firebase/app";
+import { getAuth } from "firebase/auth";
 
-// Your web app's Firebase configuration
 const firebaseConfig = {
-  apiKey: "AIzaSyB-vKhIKVTPEybCVFT0PkOAUtNOxgs7Yzw",
-  authDomain: "seeds-life-skills.firebaseapp.com",
-  projectId: "seeds-life-skills",
-  storageBucket: "seeds-life-skills.firebasestorage.app",
-  messagingSenderId: "831460812957",
-  appId: "1:831460812957:web:5d639da68b12d03b110c74"
+  apiKey: process.env.EXPO_PUBLIC_FIREBASE_API_KEY,
+  authDomain: process.env.EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN,
+  projectId: process.env.EXPO_PUBLIC_FIREBASE_PROJECT_ID,
+  storageBucket: process.env.EXPO_PUBLIC_FIREBASE_STORAGE_BUCKET,
+  messagingSenderId:
+    process.env.EXPO_PUBLIC_FIREBASE_MESSAGING_SENDER_ID,
+  appId: process.env.EXPO_PUBLIC_FIREBASE_APP_ID,
 };
 
-// Initialize Firebase
-const app = initializeApp(firebaseConfig);
+const app =
+  getApps().length > 0
+    ? getApp()
+    : initializeApp(firebaseConfig);
+
+export const auth = getAuth(app);
+
+export default app;
