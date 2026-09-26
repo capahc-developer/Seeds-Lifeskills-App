@@ -44,12 +44,22 @@ export default function AllSkills() {
 
       try {
 
+        setLoading(true);
+        setError(false);
+
+        console.log('Starting to load skills from Firebase...');
+
         const skillsQuery = query(
           collection(db, 'skills'),
           where('active', '==', true)
         );
 
         const snapshot = await getDocs(skillsQuery);
+
+        console.log(
+          'Skills query successful. Documents found:',
+          snapshot.size
+        );
 
 
         const loadedSkills = snapshot.docs.map((doc) => ({
@@ -64,6 +74,8 @@ export default function AllSkills() {
         );
 
 
+        console.log('Loaded skills:', loadedSkills);
+
         setSkills(loadedSkills);
 
 
@@ -72,6 +84,16 @@ export default function AllSkills() {
         console.error(
           'Error loading skills from Firebase:',
           err
+        );
+
+        console.log(
+          'FIREBASE ERROR CODE:',
+          err?.code
+        );
+
+        console.log(
+          'FIREBASE ERROR MESSAGE:',
+          err?.message
         );
 
         setError(true);
@@ -175,8 +197,8 @@ export default function AllSkills() {
             key={skill.id}
             style={s.card}
             onPress={() =>
-  router.push(`/skill/${skill.id}`)
-}
+              router.push(`/skill/${skill.id}`)
+            }
           >
 
             <View

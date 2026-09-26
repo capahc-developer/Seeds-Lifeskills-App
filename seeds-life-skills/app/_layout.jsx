@@ -15,6 +15,7 @@ export default function RootLayout() {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
 
+  // Listen for Firebase authentication changes
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(
       auth,
@@ -27,20 +28,25 @@ export default function RootLayout() {
     return unsubscribe;
   }, []);
 
+  // Control navigation based on authentication state
   useEffect(() => {
     if (loading) return;
 
     const isOnLoginScreen = segments[0] === "login";
 
+    // Not logged in -> send to login
     if (!user && !isOnLoginScreen) {
       router.replace("/login");
+      return;
     }
 
+    // Logged in while on login screen -> send to Home
     if (user && isOnLoginScreen) {
-      router.replace("/(tabs)");
+      router.replace("/");
     }
   }, [user, loading, segments, router]);
 
+  // Wait until Firebase finishes checking authentication
   if (loading) {
     return (
       <View
@@ -61,6 +67,7 @@ export default function RootLayout() {
       <StudentProfileProvider>
         <Stack screenOptions={{ headerShown: false }}>
           <Stack.Screen name="login" />
+          <Stack.Screen name="index" />
           <Stack.Screen name="(tabs)" />
         </Stack>
       </StudentProfileProvider>

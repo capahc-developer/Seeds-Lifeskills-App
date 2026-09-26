@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import {
   ActivityIndicator,
   SafeAreaView,
@@ -8,17 +8,11 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
+
 import { useRouter } from "expo-router";
 
 import {
-  GoogleSignin,
-  statusCodes,
-} from "@react-native-google-signin/google-signin";
-
-import {
   createUserWithEmailAndPassword,
-  GoogleAuthProvider,
-  signInWithCredential,
   signInWithEmailAndPassword,
 } from "firebase/auth";
 
@@ -30,18 +24,9 @@ export default function LoginScreen() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
 
-  const [loading, setLoading] = useState(false);
-  const [googleLoading, setGoogleLoading] = useState(false);
-
   const [createAccount, setCreateAccount] = useState(false);
+  const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-
-  useEffect(() => {
-    GoogleSignin.configure({
-      webClientId: process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID,
-      iosClientId: process.env.EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID,
-    });
-  }, []);
 
   async function handleEmailAuth() {
     try {
@@ -87,13 +72,7 @@ export default function LoginScreen() {
           break;
 
         case "auth/invalid-credential":
-          setError("Incorrect email or password.");
-          break;
-
         case "auth/user-not-found":
-          setError("No account was found with this email.");
-          break;
-
         case "auth/wrong-password":
           setError("Incorrect email or password.");
           break;
@@ -106,46 +85,6 @@ export default function LoginScreen() {
       }
     } finally {
       setLoading(false);
-    }
-  }
-
-  async function handleGoogleSignIn() {
-    try {
-      setGoogleLoading(true);
-      setError(null);
-
-      const result = await GoogleSignin.signIn();
-
-      const idToken = result.data?.idToken;
-
-      if (!idToken) {
-        throw new Error("Google did not return an ID token.");
-      }
-
-      const credential =
-        GoogleAuthProvider.credential(idToken);
-
-      await signInWithCredential(
-        auth,
-        credential
-      );
-
-      router.replace("/");
-    } catch (err: any) {
-      console.error("Google sign-in error:", err);
-
-      if (err.code === statusCodes.SIGN_IN_CANCELLED) {
-        setError("Google sign in was cancelled.");
-      } else if (err.code === statusCodes.IN_PROGRESS) {
-        setError("Google sign in is already in progress.");
-      } else {
-        setError(
-          err?.message ??
-            "Something went wrong with Google sign in."
-        );
-      }
-    } finally {
-      setGoogleLoading(false);
     }
   }
 
@@ -189,16 +128,14 @@ export default function LoginScreen() {
           secureTextEntry
           autoCapitalize="none"
           textContentType={
-            createAccount
-              ? "newPassword"
-              : "password"
+            createAccount ? "newPassword" : "password"
           }
         />
 
         <TouchableOpacity
           style={styles.primaryButton}
           onPress={handleEmailAuth}
-          disabled={loading || googleLoading}
+          disabled={loading}
         >
           {loading ? (
             <ActivityIndicator color="#FFFFFF" />
@@ -213,35 +150,13 @@ export default function LoginScreen() {
 
         <TouchableOpacity
           onPress={toggleMode}
-          disabled={loading || googleLoading}
+          disabled={loading}
         >
           <Text style={styles.switchText}>
             {createAccount
               ? "Already have an account? Sign in"
               : "Don't have an account? Create one"}
           </Text>
-        </TouchableOpacity>
-
-        <View style={styles.dividerContainer}>
-          <View style={styles.divider} />
-          <Text style={styles.dividerText}>
-            OR
-          </Text>
-          <View style={styles.divider} />
-        </View>
-
-        <TouchableOpacity
-          style={styles.googleButton}
-          onPress={handleGoogleSignIn}
-          disabled={loading || googleLoading}
-        >
-          {googleLoading ? (
-            <ActivityIndicator />
-          ) : (
-            <Text style={styles.googleButtonText}>
-              Continue with Google
-            </Text>
-          )}
         </TouchableOpacity>
 
         {error && (
@@ -313,40 +228,6 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: "600",
     marginTop: 18,
-  },
-
-  dividerContainer: {
-    flexDirection: "row",
-    alignItems: "center",
-    marginVertical: 28,
-  },
-
-  divider: {
-    flex: 1,
-    height: 1,
-    backgroundColor: "#D9DEE3",
-  },
-
-  dividerText: {
-    marginHorizontal: 14,
-    color: "#929AA1",
-    fontSize: 12,
-    fontWeight: "600",
-  },
-
-  googleButton: {
-    backgroundColor: "#FFFFFF",
-    borderWidth: 1,
-    borderColor: "#DADCE0",
-    borderRadius: 12,
-    paddingVertical: 16,
-    alignItems: "center",
-  },
-
-  googleButtonText: {
-    fontSize: 16,
-    fontWeight: "600",
-    color: "#333333",
   },
 
   errorText: {
