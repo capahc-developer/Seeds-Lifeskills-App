@@ -2,6 +2,8 @@ import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import PressableCard from '../components/PressableCard';
+import { useStudentProfile } from '../context/StudentProfileContext';
+import { auth } from '../lib/firebase';
 
 const cards = [
   {
@@ -39,6 +41,8 @@ const cards = [
 ];
 
 export default function HomeScreen() {
+  const { profile, loading } = useStudentProfile();
+  const adultName = auth.currentUser?.displayName?.trim().split(' ')[0];
   return (
     <ScrollView style={styles.page} contentContainerStyle={styles.content}>
       <View style={styles.top}>
@@ -61,10 +65,19 @@ export default function HomeScreen() {
       </View>
 
       <View style={styles.welcome}>
-        <Text style={styles.title}>Welcome, Parent! 👋</Text>
+        <Text style={styles.title}>Welcome{adultName ? `, ${adultName}` : ''}! 👋</Text>
         <Text style={styles.subtitle}>
-          We're here to help you support your child's success.
+          We are here to help you support your child’s success.
         </Text>
+        <Pressable accessibilityRole="button" accessibilityLabel="Edit student profile" onPress={() => router.push('/student-profile')} style={styles.studentBanner}>
+          <View style={styles.studentAvatar}><Text style={styles.studentEmoji}>{profile.avatar || '🌱'}</Text></View>
+          <View style={styles.studentBannerText}>
+            <Text style={styles.studentLabel}>STUDENT PROFILE</Text>
+            <Text style={styles.studentName}>{loading ? 'Loading...' : profile.name || 'Add your child’s profile'}</Text>
+            <Text style={styles.studentHint}>Personalize skills and visual guides</Text>
+          </View>
+          <Ionicons name="chevron-forward" size={20} color="#47749A" />
+        </Pressable>
       </View>
 
       {cards.map((card) => (
@@ -145,6 +158,13 @@ const styles = StyleSheet.create({
     color: '#7A8495',
     marginTop: 6,
   },
+  studentBanner: { marginTop: 24, backgroundColor: '#FFF', borderRadius: 20, padding: 16, flexDirection: 'row', alignItems: 'center', gap: 12, borderWidth: 1, borderColor: '#DDECF8' },
+  studentAvatar: { width: 54, height: 54, borderRadius: 27, backgroundColor: '#E9F8F0', alignItems: 'center', justifyContent: 'center' },
+  studentEmoji: { fontSize: 29 },
+  studentBannerText: { flex: 1 },
+  studentLabel: { fontSize: 11, fontWeight: '800', letterSpacing: 0.8, color: '#438A6A' },
+  studentName: { fontSize: 17, fontWeight: '800', color: '#17213A', marginTop: 3 },
+  studentHint: { fontSize: 12, color: '#718096', marginTop: 2 },
   card: {
     marginHorizontal: 16,
     marginTop: 14,

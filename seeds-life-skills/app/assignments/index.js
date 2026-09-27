@@ -25,6 +25,8 @@ import {
   serverTimestamp,
 } from 'firebase/firestore';
 
+import { practiceLogsForCurrentUser } from '../../lib/userData';
+
 import { db } from '../../lib/firebase';
 
 
@@ -123,7 +125,7 @@ export default function PracticeLogScreen() {
         // ---------------------------
 
         const logsQuery = query(
-          collection(db, 'practiceLog'),
+          practiceLogsForCurrentUser(),
           orderBy('createdAt', 'desc')
         );
 
@@ -244,7 +246,7 @@ export default function PracticeLogScreen() {
 
 
       const docRef = await addDoc(
-        collection(db, 'practiceLog'),
+        practiceLogsForCurrentUser(),
         newLog
       );
 

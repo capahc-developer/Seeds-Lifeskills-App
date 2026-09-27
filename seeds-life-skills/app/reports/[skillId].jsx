@@ -17,13 +17,14 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 
 import {
-  collection,
   getDocs,
   query,
   orderBy,
   doc,
   getDoc,
 } from 'firebase/firestore';
+
+import { practiceLogsForCurrentUser } from '../../lib/userData';
 
 import { db } from '../../lib/firebase';
 
@@ -81,7 +82,7 @@ export default function SkillReport() {
         // -------------------------
 
         const logsQuery = query(
-          collection(db, 'practiceLog'),
+          practiceLogsForCurrentUser(),
           orderBy('createdAt', 'desc')
         );
 

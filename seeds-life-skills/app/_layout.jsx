@@ -63,8 +63,8 @@ export default function RootLayout() {
   }
 
   return (
-    <ProgressProvider>
-      <StudentProfileProvider>
+    <ProgressProvider key={user?.uid || 'signed-out'}>
+      <StudentProfileProvider key={user?.uid || 'signed-out'} userId={user?.uid}>
         <Stack screenOptions={{ headerShown: false }}>
           <Stack.Screen name="login" />
           <Stack.Screen name="index" />

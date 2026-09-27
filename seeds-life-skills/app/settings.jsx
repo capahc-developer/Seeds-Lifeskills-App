@@ -68,8 +68,7 @@ export default function SettingsScreen() {
       <View style={styles.infoCard}>
         <Ionicons name="shield-checkmark-outline" size={24} color="#438A6A" />
         <Text style={styles.infoText}>
-          Account details are saved to your signed-in adult profile and are
-          separate from the student's learning profile.
+          Your account and student profile are saved separately under your signed-in account.
         </Text>
       </View>
 

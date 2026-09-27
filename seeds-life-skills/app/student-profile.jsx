@@ -9,20 +9,12 @@ import {
   ActivityIndicator,
 } from 'react-native';
 
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useStudentProfile } from '../context/StudentProfileContext';
 
-import {
-  doc,
-  setDoc,
-  getDoc,
-  serverTimestamp,
-} from 'firebase/firestore';
-
-import { db } from '../lib/firebase';
-
+const avatars = ['🌱', '🌟', '🦋', '🚀', '🐻', '🎨'];
 
 const fields = [
   {
@@ -51,155 +43,32 @@ const fields = [
 
 export default function StudentProfile() {
 
-  const { profile, updateProfile } = useStudentProfile();
-
-  const [loading, setLoading] = useState(true);
+  const { profile, loading, error, saveProfile } = useStudentProfile();
+  const [draft, setDraft] = useState(null);
+  const currentDraft = draft || profile;
   const [saving, setSaving] = useState(false);
-
-
-  // Load saved student profile from Firebase
-  useEffect(() => {
-
-    const loadProfile = async () => {
-
-      try {
-
-        const profileRef = doc(
-          db,
-          'studentProfiles',
-          'currentStudent'
-        );
-
-        const profileSnap = await getDoc(profileRef);
-
-
-        if (profileSnap.exists()) {
-
-          const data = profileSnap.data();
-
-          updateProfile({
-            name: data.name || '',
-            age: data.age != null
-              ? String(data.age)
-              : '',
-            strengths: data.strengths || '',
-            barriers: data.barriers || '',
-            interests: data.interests || '',
-          });
-
-        }
-
-      } catch (error) {
-
-        console.error(
-          'Error loading student profile:',
-          error
-        );
-
-        Alert.alert(
-          'Error',
-          'Could not load the student profile.'
-        );
-
-      } finally {
-
-        setLoading(false);
-
-      }
-
-    };
-
-
-    loadProfile();
-
-  }, []);
-
-
-  // Save/update student profile in Firebase
-  const saveProfile = async () => {
-
-    try {
-
-      setSaving(true);
-
-
-      await setDoc(
-        doc(
-          db,
-          'studentProfiles',
-          'currentStudent'
-        ),
-        {
-          name: profile.name.trim(),
-
-          age: profile.age
-            ? Number(profile.age)
-            : null,
-
-          strengths: profile.strengths.trim(),
-
-          barriers: profile.barriers.trim(),
-
-          interests: profile.interests.trim(),
-
-          updatedAt: serverTimestamp(),
-        },
-        {
-          merge: true,
-        }
-      );
-
-
-      Alert.alert(
-        'Saved',
-        'Student profile saved successfully.'
-      );
-
-
-      router.back();
-
-
-    } catch (error) {
-
-      console.error(
-        'Error saving student profile:',
-        error
-      );
-
-      Alert.alert(
-        'Error',
-        'Could not save the student profile.'
-      );
-
-
-    } finally {
-
-      setSaving(false);
-
+  const updateDraft = (patch) => setDraft((current) => ({ ...profile, ...current, ...patch }));
+  const handleSave = async () => {
+    if (saving || loading || error) return;
+    const age = currentDraft.age.trim();
+    if (age && (!/^\d+$/.test(age) || Number(age) > 120)) {
+      Alert.alert('Check age', 'Enter an age between 0 and 120, or leave it empty.');
+      return;
     }
-
+    try {
+      setSaving(true);
+      await saveProfile(currentDraft);
+      router.back();
+    } catch (cause) {
+      console.error('Error saving student profile:', cause);
+      Alert.alert('Could not save', 'Please try again in a moment.');
+    } finally {
+      setSaving(false);
+    }
   };
 
-
-  // Show loading screen while Firebase retrieves profile
-  if (loading) {
-
-    return (
-
-      <View style={s.loadingContainer}>
-
-        <ActivityIndicator size="large" />
-
-        <Text style={s.loadingText}>
-          Loading profile...
-        </Text>
-
-      </View>
-
-    );
-
-  }
-
+  if (loading) return <View style={s.loadingContainer}><ActivityIndicator size="large" /><Text style={s.loadingText}>Loading profile...</Text></View>;
+  if (error) return <View style={s.loadingContainer}><Text style={s.loadingText}>Could not load your profile. Please reopen this page.</Text><Pressable onPress={() => router.back()}><Text>Go back</Text></Pressable></View>;
 
   return (
 
@@ -233,16 +102,11 @@ export default function StudentProfile() {
       </View>
 
 
-      <View style={s.avatar}>
-
-        <Ionicons
-          name="person-outline"
-          size={48}
-          color="#2F8CF0"
-        />
-
+      <View style={s.avatar}><Text style={s.avatarEmoji}>{currentDraft.avatar}</Text></View>
+      <Text style={s.avatarHint}>Choose an avatar</Text>
+      <View style={s.avatarOptions}>
+        {avatars.map((avatar) => <Pressable key={avatar} accessibilityRole="button" accessibilityLabel={`Choose ${avatar} avatar`} onPress={() => updateDraft({ avatar })} style={[s.avatarOption, currentDraft.avatar === avatar && s.avatarSelected]}><Text style={s.optionEmoji}>{avatar}</Text></Pressable>)}
       </View>
-
 
       <Text style={s.section}>
         Basic Information
@@ -251,9 +115,9 @@ export default function StudentProfile() {
 
       <TextInput
         style={s.input}
-        value={profile.name}
+        value={currentDraft.name}
         onChangeText={(v) =>
-          updateProfile({
+          updateDraft({
             name: v,
           })
         }
@@ -263,9 +127,9 @@ export default function StudentProfile() {
 
       <TextInput
         style={s.input}
-        value={profile.age}
+        value={currentDraft.age}
         onChangeText={(v) =>
-          updateProfile({
+          updateDraft({
             age: v,
           })
         }
@@ -294,9 +158,9 @@ export default function StudentProfile() {
           <TextInput
             style={s.textarea}
             multiline
-            value={profile[f.key]}
+            value={currentDraft[f.key]}
             onChangeText={(v) =>
-              updateProfile({
+              updateDraft({
                 [f.key]: v,
               })
             }
@@ -319,9 +183,7 @@ export default function StudentProfile() {
 
 
         <Text style={s.noteText}>
-          This profile is used to personalize
-          strategies and step-by-step visuals
-          for your child.
+          Saved to your adult account. This profile personalizes strategies and visuals for your child.
         </Text>
 
       </View>
@@ -332,7 +194,7 @@ export default function StudentProfile() {
           s.button,
           saving && s.buttonDisabled,
         ]}
-        onPress={saveProfile}
+        onPress={handleSave}
         disabled={saving}
       >
 
@@ -394,6 +256,12 @@ const s = StyleSheet.create({
     marginTop: 24,
   },
 
+  avatarEmoji: { fontSize: 48 },
+  avatarHint: { textAlign: 'center', marginTop: 10, color: '#526170', fontWeight: '700' },
+  avatarOptions: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'center', gap: 8, marginHorizontal: 20, marginTop: 12 },
+  avatarOption: { width: 46, height: 46, borderRadius: 23, alignItems: 'center', justifyContent: 'center', backgroundColor: '#FFF', borderWidth: 2, borderColor: 'transparent' },
+  avatarSelected: { borderColor: '#258DEB', backgroundColor: '#E6F2FF' },
+  optionEmoji: { fontSize: 25 },
   section: {
     fontSize: 17,
     fontWeight: '800',

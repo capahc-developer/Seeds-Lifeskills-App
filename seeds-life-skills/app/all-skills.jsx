@@ -168,7 +168,7 @@ export default function AllSkills() {
         <View style={s.statusContainer}>
 
           <Text style={s.errorText}>
-            We couldn't load the skills.
+            We could not load the skills.
           </Text>
 
         </View>
