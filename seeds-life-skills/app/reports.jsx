@@ -13,13 +13,13 @@ import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 
 import {
-  collection,
   getDocs,
   query,
   orderBy,
 } from 'firebase/firestore';
 
-import { db } from '../lib/firebase';
+import { practiceLogsForCurrentUser } from '../lib/userData';
+
 
 
 const ratingInfo = [
@@ -48,7 +48,7 @@ export default function Reports() {
       try {
 
         const logsQuery = query(
-          collection(db, 'practiceLog'),
+          practiceLogsForCurrentUser(),
           orderBy('createdAt', 'desc')
         );
 

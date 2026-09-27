@@ -67,4 +67,12 @@ This project uses the EAS production profile for App Store signed builds. From t
 Testers install Apple's TestFlight app and accept their invitation. Uploading to TestFlight does not publish the app on the App Store. The `preview` EAS profile remains for registered device installations; it does not create a TestFlight build. A new production build increments the iOS build number through EAS remote versioning.
 
 If a build reports missing `EXPO_PUBLIC_*` values, configure those values in the EAS production environment before rebuilding; local `.env` files are not automatically available to the cloud build.
+
+## Account-scoped student data
+
+The student profile is stored at `studentProfiles/{adultUid}`. Practice entries and the reports derived from them use `users/{adultUid}/practiceLog/{entryId}`. Each signed-in adult has one student profile. Switching or signing out clears the profile shown in the app.
+
+**Deploy the included `firestore.rules` to the same Firebase project used by the app before using this build with families.** In Firebase Console → Firestore Database → Rules, review the rules against any other collections your project uses, then publish the equivalent rules. The included rules allow an adult to access only their own student profile, adult profile, and practice entries; signed-in users can read the shared skill catalog. App code alone does not enforce this boundary.
+
+The old shared `studentProfiles/currentStudent` document and global `practiceLog` collection are intentionally not read or automatically copied. Their records cannot safely be assigned to a particular adult. Existing accounts start with an empty private profile and practice history. If you know who owns a legacy record, move it to that adult's UID from an administrator session after checking consent, then remove access to the old shared records. The profile avatar is an emoji choice stored with the profile; no image storage setup is required.
 >>>>>>> f28e0fd0662d5ec0996f0fbca147800612a84df8

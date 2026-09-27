@@ -157,7 +157,7 @@ export default function ProfileScreen() {
       </View>
 
       <View style={styles.avatar}>
-        <Ionicons name="person" size={46} color="#2F8CF0" />
+        <Text style={styles.avatarInitials}>{displayName.split(/\s+/).slice(0, 2).map((part) => part[0]?.toUpperCase()).join('')}</Text>
       </View>
 
       {profileLoading ? (
@@ -313,6 +313,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     marginTop: 30,
   },
+  avatarInitials: { fontSize: 32, fontWeight: '800', color: '#2F8CF0' },
   profileSpinner: {
     marginTop: 18,
   },
