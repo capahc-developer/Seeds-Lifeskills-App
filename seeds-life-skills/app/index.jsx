@@ -7,6 +7,14 @@ import { auth } from '../lib/firebase';
 
 const cards = [
   {
+    title: 'Parent Assistant',
+    subtitle: 'Ask a question or create a practice activity.',
+    icon: 'sparkles-outline',
+    tint: '#FFF3DE',
+    color: '#A9690B',
+    route: '/parent-assistant'
+  },
+  {
     title: 'Student Profile',
     subtitle: "Tell us about your child's strengths, learning barriers, and interests.",
     icon: 'person-circle-outline',

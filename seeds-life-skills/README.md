@@ -75,4 +75,18 @@ The student profile is stored at `studentProfiles/{adultUid}`. Practice entries 
 **Deploy the included `firestore.rules` to the same Firebase project used by the app before using this build with families.** In Firebase Console → Firestore Database → Rules, review the rules against any other collections your project uses, then publish the equivalent rules. The included rules allow an adult to access only their own student profile, adult profile, and practice entries; signed-in users can read the shared skill catalog. App code alone does not enforce this boundary.
 
 The old shared `studentProfiles/currentStudent` document and global `practiceLog` collection are intentionally not read or automatically copied. Their records cannot safely be assigned to a particular adult. Existing accounts start with an empty private profile and practice history. If you know who owns a legacy record, move it to that adult's UID from an administrator session after checking consent, then remove access to the old shared records. The profile avatar is an emoji choice stored with the profile; no image storage setup is required.
->>>>>>> f28e0fd0662d5ec0996f0fbca147800612a84df8
+
+## Parent Assistant
+
+The Home screen offers parent questions and practice activity generation. It calls the authenticated `parentAssistant` Firebase function. The adult must opt in before the function reads their student profile; the child's name is never sent to the model. Generated activities are shown for review and saved only when the adult taps **Save this activity**. Saved plans live at `users/{adultUid}/practicePlans/{planId}`. Each account can make up to 10 generation requests per UTC day.
+
+Before releasing this feature, review and deploy `firestore.rules` and the function to the Firebase project matching `EXPO_PUBLIC_FIREBASE_PROJECT_ID`. Cloud Functions deployment requires Firebase's Blaze plan; model requests and secrets may incur charges. From this directory, run:
+
+```bash
+cd functions && npm install && cd ..
+npx firebase-tools login
+npx firebase-tools functions:secrets:set OPENAI_API_KEY --project YOUR_PROJECT_ID
+npx firebase-tools deploy --only firestore:rules,functions:parentAssistant --project YOUR_PROJECT_ID
+```
+
+Enter an OpenAI API key when the CLI prompts; never add that key to Expo environment variables or Git. The function uses `gpt-5-mini` through the OpenAI Responses API, requests `store: false`, and holds the key in Firebase Secret Manager. OpenAI API billing is separate from a ChatGPT subscription. Review the existing live Firestore rules before deploying: CLI deployment replaces them. Then make a new EAS production build for TestFlight. The assistant is a support tool; parents should review suggestions before using them.
