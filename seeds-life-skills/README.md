@@ -85,8 +85,8 @@ Before releasing this feature, review and deploy `firestore.rules` and the funct
 ```bash
 cd functions && npm install && cd ..
 npx firebase-tools login
-npx firebase-tools functions:secrets:set GEMINI_API_KEY --project YOUR_PROJECT_ID
+npx firebase-tools functions:secrets:set OPENAI_API_KEY --project YOUR_PROJECT_ID
 npx firebase-tools deploy --only firestore:rules,functions:parentAssistant --project YOUR_PROJECT_ID
 ```
 
-Enter a Gemini API key when the CLI prompts; never add that key to Expo environment variables or Git. The function uses `gemini-2.5-flash` and the key is held in Firebase Secret Manager. Review the existing live Firestore rules before deploying: CLI deployment replaces them. Then make a new EAS production build for TestFlight. The assistant is a support tool; parents should review suggestions before using them.
+Enter an OpenAI API key when the CLI prompts; never add that key to Expo environment variables or Git. The function uses `gpt-5-mini` through the OpenAI Responses API, requests `store: false`, and holds the key in Firebase Secret Manager. OpenAI API billing is separate from a ChatGPT subscription. Review the existing live Firestore rules before deploying: CLI deployment replaces them. Then make a new EAS production build for TestFlight. The assistant is a support tool; parents should review suggestions before using them.
