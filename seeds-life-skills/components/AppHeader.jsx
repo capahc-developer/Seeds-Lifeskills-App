@@ -4,6 +4,15 @@ import { Ionicons } from '@expo/vector-icons';
 import { COLORS } from '../constants/theme';
 
 export default function AppHeader({ activeTab = 'home', showHome = false }) {
+  const handleRightButton = () => {
+    if (showHome) {
+      router.replace('/');
+      return;
+    }
+
+    router.push('/profile');
+  };
+
   return (
     <View style={styles.header}>
       <View style={styles.tabs}>
@@ -34,8 +43,8 @@ export default function AppHeader({ activeTab = 'home', showHome = false }) {
 
       <Pressable
         accessibilityRole="button"
-        accessibilityLabel="Go to home"
-        onPress={() => router.replace('/')}
+        accessibilityLabel={showHome ? 'Go to home' : 'Open adult profile'}
+        onPress={handleRightButton}
         style={styles.homeButton}
       >
         <Ionicons
@@ -58,15 +67,24 @@ const styles = StyleSheet.create({
     borderBottomColor: COLORS.border,
     backgroundColor: COLORS.background,
   },
-  tabs: { flex: 1, maxWidth: 520, flexDirection: 'row' },
+  tabs: {
+    flex: 1,
+    maxWidth: 520,
+    flexDirection: 'row',
+  },
   tab: {
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: COLORS.surface,
   },
-  activeTab: { backgroundColor: COLORS.primary },
-  tabText: { fontSize: 18, fontWeight: '600' },
+  activeTab: {
+    backgroundColor: COLORS.primary,
+  },
+  tabText: {
+    fontSize: 18,
+    fontWeight: '600',
+  },
   homeButton: {
     width: 76,
     alignItems: 'center',
