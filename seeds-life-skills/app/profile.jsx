@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -14,13 +14,51 @@ import {
   sendPasswordResetEmail,
   signOut,
 } from 'firebase/auth';
+import { doc, getDoc } from 'firebase/firestore';
 
-import { auth } from '../lib/firebase';
+import { auth, db } from '../lib/firebase';
 
 export default function ProfileScreen() {
   const user = auth.currentUser;
+
   const [loggingOut, setLoggingOut] = useState(false);
   const [sendingReset, setSendingReset] = useState(false);
+  const [profileLoading, setProfileLoading] = useState(true);
+  const [adultProfile, setAdultProfile] = useState({
+    fullName: '',
+    relationship: '',
+    phone: '',
+  });
+
+  useEffect(() => {
+    const loadAdultProfile = async () => {
+      if (!user) {
+        setProfileLoading(false);
+        return;
+      }
+
+      try {
+        const profileRef = doc(db, 'adultProfiles', user.uid);
+        const profileSnap = await getDoc(profileRef);
+
+        if (profileSnap.exists()) {
+          const data = profileSnap.data();
+
+          setAdultProfile({
+            fullName: data.fullName || '',
+            relationship: data.relationship || '',
+            phone: data.phone || '',
+          });
+        }
+      } catch (error) {
+        console.error('Error loading adult profile:', error);
+      } finally {
+        setProfileLoading(false);
+      }
+    };
+
+    loadAdultProfile();
+  }, [user]);
 
   const providerLabel = useMemo(() => {
     const providerId = user?.providerData?.[0]?.providerId;
@@ -39,6 +77,11 @@ export default function ProfileScreen() {
       day: 'numeric',
     });
   }, [user]);
+
+  const displayName =
+    adultProfile.fullName ||
+    user?.displayName ||
+    'Parent / Caregiver';
 
   const handlePasswordReset = async () => {
     if (!user?.email) {
@@ -105,11 +148,11 @@ export default function ProfileScreen() {
 
         <Pressable
           accessibilityRole="button"
-          accessibilityLabel="Open settings"
-          onPress={() => router.push('/settings')}
+          accessibilityLabel="Edit account"
+          onPress={() => router.push('/account-edit')}
           style={styles.headerButton}
         >
-          <Ionicons name="settings-outline" size={24} color="#168CE8" />
+          <Ionicons name="create-outline" size={24} color="#168CE8" />
         </Pressable>
       </View>
 
@@ -117,10 +160,18 @@ export default function ProfileScreen() {
         <Ionicons name="person" size={46} color="#2F8CF0" />
       </View>
 
-      <Text style={styles.name}>
-        {user?.displayName || 'Parent / Caregiver'}
-      </Text>
-      <Text style={styles.email}>{user?.email || 'No email available'}</Text>
+      {profileLoading ? (
+        <ActivityIndicator style={styles.profileSpinner} />
+      ) : (
+        <>
+          <Text style={styles.name}>{displayName}</Text>
+          <Text style={styles.email}>{user?.email || 'No email available'}</Text>
+
+          {!!adultProfile.relationship && (
+            <Text style={styles.relationship}>{adultProfile.relationship}</Text>
+          )}
+        </>
+      )}
 
       <View style={styles.card}>
         <Text style={styles.cardTitle}>Account Details</Text>
@@ -129,6 +180,16 @@ export default function ProfileScreen() {
           <Text style={styles.detailLabel}>Email</Text>
           <Text style={styles.detailValue}>{user?.email || 'Unavailable'}</Text>
         </View>
+
+        {!!adultProfile.phone && (
+          <>
+            <View style={styles.divider} />
+            <View style={styles.detailRow}>
+              <Text style={styles.detailLabel}>Phone</Text>
+              <Text style={styles.detailValue}>{adultProfile.phone}</Text>
+            </View>
+          </>
+        )}
 
         <View style={styles.divider} />
 
@@ -154,6 +215,19 @@ export default function ProfileScreen() {
         </View>
       </View>
 
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel="Edit account details"
+        onPress={() => router.push('/account-edit')}
+        style={({ pressed }) => [
+          styles.secondaryButton,
+          pressed && styles.pressed,
+        ]}
+      >
+        <Ionicons name="create-outline" size={22} color="#168CE8" />
+        <Text style={styles.secondaryButtonText}>Edit Account Details</Text>
+      </Pressable>
+
       {providerLabel === 'Email & Password' && (
         <Pressable
           accessibilityRole="button"
@@ -176,19 +250,6 @@ export default function ProfileScreen() {
           )}
         </Pressable>
       )}
-
-      <Pressable
-        accessibilityRole="button"
-        accessibilityLabel="Open student profile"
-        onPress={() => router.push('/student-profile')}
-        style={({ pressed }) => [
-          styles.secondaryButton,
-          pressed && styles.pressed,
-        ]}
-      >
-        <Ionicons name="school-outline" size={22} color="#168CE8" />
-        <Text style={styles.secondaryButtonText}>Student Profile</Text>
-      </Pressable>
 
       <Pressable
         accessibilityRole="button"
@@ -252,6 +313,9 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     marginTop: 30,
   },
+  profileSpinner: {
+    marginTop: 18,
+  },
   name: {
     marginTop: 14,
     textAlign: 'center',
@@ -264,6 +328,13 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     fontSize: 15,
     color: '#718096',
+  },
+  relationship: {
+    marginTop: 7,
+    textAlign: 'center',
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#47749A',
   },
   card: {
     marginHorizontal: 18,
