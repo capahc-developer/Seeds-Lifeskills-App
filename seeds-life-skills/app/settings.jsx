@@ -5,19 +5,19 @@ import { Ionicons } from '@expo/vector-icons';
 const rows = [
   {
     title: 'Adult Profile',
-    subtitle: 'View account details, reset your password, or log out.',
+    subtitle: 'View your account details, password options, and logout.',
     icon: 'person-circle-outline',
     color: '#2F8CF0',
     tint: '#E6F2FF',
     route: '/profile',
   },
   {
-    title: 'Student Profile',
-    subtitle: "Update your child's information, strengths, barriers, and interests.",
-    icon: 'school-outline',
+    title: 'Edit Account',
+    subtitle: 'Update your name, relationship to the student, and contact information.',
+    icon: 'create-outline',
     color: '#7C5CE7',
     tint: '#EEE9FF',
-    route: '/student-profile',
+    route: '/account-edit',
   },
 ];
 
@@ -39,7 +39,7 @@ export default function SettingsScreen() {
         <View style={styles.headerButton} />
       </View>
 
-      <Text style={styles.sectionLabel}>Profiles & Account</Text>
+      <Text style={styles.sectionLabel}>Account</Text>
 
       {rows.map((row) => (
         <Pressable
@@ -68,8 +68,8 @@ export default function SettingsScreen() {
       <View style={styles.infoCard}>
         <Ionicons name="shield-checkmark-outline" size={24} color="#438A6A" />
         <Text style={styles.infoText}>
-          Your adult account controls access to Independent Steps. Student
-          information is managed separately in the Student Profile.
+          Account details are saved to your signed-in adult profile and are
+          separate from the student's learning profile.
         </Text>
       </View>
 
