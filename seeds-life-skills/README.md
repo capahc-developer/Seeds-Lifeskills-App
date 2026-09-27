@@ -52,3 +52,15 @@ Join our community of developers creating universal apps.
 
 ## Personalized Skills prototype
 Added Student Profile -> All Skills -> Skill -> Psychologist Strategies -> Step-by-Step Visual flow. The visual generator currently demonstrates personalization locally; production AI should be called through a secure backend/Cloud Function, not directly from the mobile client.
+
+## TestFlight (iOS)
+
+This project uses the EAS production profile for App Store signed builds. From the `seeds-life-skills` directory:
+
+1. Join the [Apple Developer Program](https://developer.apple.com/programs/) and ensure your Apple team can use the bundle ID `com.seedshc.independentsteps`. Sign in to Expo with `npx eas-cli login` and to Apple when EAS prompts you. The app is linked to EAS project `99414f2c-e7aa-44d4-8228-d64d0aafff99`; use an Expo account with access to it.
+2. Run `npm ci`, then `npm run testflight -- --clear-cache` for the first build (later builds can use `npm run testflight`). EAS will configure signing, build an iOS production archive, and submit it to App Store Connect. Answer the first submission prompts to select or create the App Store Connect app. Do not add a made-up `ascAppId`; after the app exists, you may put its actual ID under `submit.production.ios.ascAppId` in `eas.json`.
+3. After Apple processes the upload, open [App Store Connect](https://appstoreconnect.apple.com/) → your app → TestFlight. Add internal testers from your App Store Connect team. For SEEDS families or volunteers outside that team, create an external testing group, supply the beta app description and feedback email, assign the build, and submit it for Beta App Review. Once approved, enable a public invitation link in that group. A QR code can point to that link.
+
+Testers install Apple's TestFlight app and accept their invitation. Uploading to TestFlight does not publish the app on the App Store. The `preview` EAS profile remains for registered device installations; it does not create a TestFlight build. A new production build increments the iOS build number through EAS remote versioning.
+
+If a build reports missing `EXPO_PUBLIC_*` values, configure those values in the EAS production environment before rebuilding; local `.env` files are not automatically available to the cloud build.
