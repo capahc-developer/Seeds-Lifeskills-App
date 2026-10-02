@@ -6,6 +6,7 @@ import {
   View,
   Pressable,
   ActivityIndicator,
+  Image,
 } from "react-native";
 
 import {
@@ -31,7 +32,7 @@ export default function Visual() {
   const { profile } = useStudentProfile();
 
   const [loading, setLoading] = useState(false);
-  const [generatedPlan, setGeneratedPlan] = useState("");
+  const [posterUrl, setPosterUrl] = useState("");
   const [error, setError] = useState("");
 
 
@@ -47,7 +48,7 @@ export default function Visual() {
 
 
   // --------------------------------
-  // Generate AI Visual Plan
+  // Generate AI Visual Poster
   // --------------------------------
 
   const handleGenerate = async () => {
@@ -91,9 +92,22 @@ export default function Visual() {
       );
 
 
-      setGeneratedPlan(
-        result.data.plan
+      const url = result.data?.posterUrl;
+
+      if (!url) {
+        throw new Error(
+          "The AI function did not return a poster URL."
+        );
+      }
+
+
+      console.log(
+        "Poster URL:",
+        url
       );
+
+
+      setPosterUrl(url);
 
 
     } catch (err) {
@@ -123,7 +137,10 @@ export default function Visual() {
 
   return (
 
-    <ScrollView style={s.page}>
+    <ScrollView
+      style={s.page}
+      contentContainerStyle={s.content}
+    >
 
       <View style={s.header}>
 
@@ -166,8 +183,8 @@ export default function Visual() {
 
 
           <Text style={s.intro}>
-            Uses the student profile and
-            psychologist strategies for{" "}
+            Create a personalized visual poster
+            for{" "}
             {skill.title}.
           </Text>
 
@@ -234,14 +251,38 @@ export default function Visual() {
         <Text style={s.buttonText}>
 
           {loading
-            ? "Generating..."
-            : generatedPlan
-              ? "Regenerate Visual"
+            ? "Creating Poster..."
+            : posterUrl
+              ? "Regenerate Poster"
               : "Generate My Child’s Visual"}
 
         </Text>
 
       </Pressable>
+
+
+      {loading && (
+
+        <View style={s.loadingCard}>
+
+          <Ionicons
+            name="image-outline"
+            size={42}
+            color="#7559E8"
+          />
+
+          <Text style={s.loadingTitle}>
+            Creating your visual...
+          </Text>
+
+          <Text style={s.loadingText}>
+            Your personalized poster is being
+            created. This may take a little while.
+          </Text>
+
+        </View>
+
+      )}
 
 
       {!!error && (
@@ -257,7 +298,7 @@ export default function Visual() {
       )}
 
 
-      {!!generatedPlan && (
+      {!!posterUrl && (
 
         <View style={s.result}>
 
@@ -272,8 +313,36 @@ export default function Visual() {
           </Text>
 
 
-          <Text style={s.aiPlan}>
-            {generatedPlan}
+          <Image
+            source={{
+              uri: posterUrl,
+            }}
+            style={s.poster}
+            resizeMode="contain"
+            onLoad={() => {
+              console.log(
+                "Poster loaded successfully"
+              );
+            }}
+            onError={(event) => {
+
+              console.error(
+                "Poster failed to load:",
+                event.nativeEvent.error
+              );
+
+              setError(
+                "The poster was created, but the image could not be displayed."
+              );
+
+            }}
+          />
+
+
+          <Text style={s.disclaimer}>
+            AI-generated visuals may need to be
+            adjusted for your child’s individual
+            needs.
           </Text>
 
         </View>
@@ -292,6 +361,10 @@ const s = StyleSheet.create({
   page: {
     flex: 1,
     backgroundColor: "#F2F9FF",
+  },
+
+  content: {
+    paddingBottom: 40,
   },
 
   header: {
@@ -365,6 +438,28 @@ const s = StyleSheet.create({
     fontWeight: "800",
   },
 
+  loadingCard: {
+    marginHorizontal: 18,
+    marginBottom: 18,
+    backgroundColor: "#FFF",
+    borderRadius: 20,
+    padding: 24,
+    alignItems: "center",
+  },
+
+  loadingTitle: {
+    fontSize: 18,
+    fontWeight: "800",
+    marginTop: 12,
+  },
+
+  loadingText: {
+    color: "#718096",
+    lineHeight: 20,
+    marginTop: 6,
+    textAlign: "center",
+  },
+
   result: {
     marginHorizontal: 18,
     marginBottom: 36,
@@ -377,12 +472,22 @@ const s = StyleSheet.create({
     fontSize: 22,
     fontWeight: "800",
     marginBottom: 16,
+    textAlign: "center",
   },
 
-  aiPlan: {
-    fontSize: 16,
-    color: "#45556B",
-    lineHeight: 26,
+  poster: {
+    width: "100%",
+    height: 520,
+    borderRadius: 14,
+    backgroundColor: "#F5F7FA",
+  },
+
+  disclaimer: {
+    fontSize: 12,
+    color: "#8A94A3",
+    lineHeight: 17,
+    marginTop: 14,
+    textAlign: "center",
   },
 
   errorBox: {
