@@ -13,6 +13,7 @@ import { useState } from 'react';
 import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useStudentProfile } from '../context/StudentProfileContext';
+import ValidationBanner from '../components/ValidationBanner';
 
 const avatars = ['🌱', '🌟', '🦋', '🚀', '🐻', '🎨'];
 
@@ -47,6 +48,9 @@ export default function StudentProfile() {
   const [draft, setDraft] = useState(null);
   const currentDraft = draft || profile;
   const [saving, setSaving] = useState(false);
+  const [validationError, setValidationError] = useState('');
+  const [nameError, setNameError] = useState(false);
+  const [ageError, setAgeError] = useState(false);
   const updateDraft = (patch) => setDraft((current) => ({ ...profile, ...current, ...patch }));
   const handleSave = async () => {
     if (saving || loading || error) return;
@@ -61,7 +65,7 @@ export default function StudentProfile() {
       router.back();
     } catch (cause) {
       console.error('Error saving student profile:', cause);
-      Alert.alert('Could not save', 'Please try again in a moment.');
+      setValidationError('The student profile could not be saved. Please try again in a moment.');
     } finally {
       setSaving(false);
     }
@@ -112,30 +116,36 @@ export default function StudentProfile() {
         Basic Information
       </Text>
 
+      <View style={s.bannerWrap}>
+        <ValidationBanner message={validationError} />
+      </View>
+
 
       <TextInput
-        style={s.input}
+        style={[s.input, nameError && s.inputError]}
         value={currentDraft.name}
-        onChangeText={(v) =>
-          updateDraft({
-            name: v,
-          })
-        }
-        placeholder="Child's first name or nickname"
+        onChangeText={(v) => {
+          updateDraft({ name: v });
+          setNameError(false);
+          setValidationError('');
+        }}
+        placeholder="Child's first name or nickname *"
       />
+      {nameError && <Text style={s.fieldErrorText}>Student name is required.</Text>}
 
 
       <TextInput
-        style={s.input}
+        style={[s.input, ageError && s.inputError]}
         value={currentDraft.age}
-        onChangeText={(v) =>
-          updateDraft({
-            age: v,
-          })
-        }
+        onChangeText={(v) => {
+          updateDraft({ age: v });
+          setAgeError(false);
+          setValidationError('');
+        }}
         placeholder="Age (optional)"
         keyboardType="number-pad"
       />
+      {ageError && <Text style={s.fieldErrorText}>Enter an age from 0 to 120, or leave it empty.</Text>}
 
 
       {fields.map((f) => (
@@ -269,6 +279,9 @@ const s = StyleSheet.create({
     marginBottom: 10,
   },
 
+  bannerWrap: { marginHorizontal: 20, marginBottom: 4 },
+  inputError: { borderColor: '#D92D20', backgroundColor: '#FFF8F7' },
+  fieldErrorText: { marginHorizontal: 20, marginTop: -6, marginBottom: 10, color: '#B42318', fontSize: 13, fontWeight: '600' },
   input: {
     marginHorizontal: 20,
     marginBottom: 12,
