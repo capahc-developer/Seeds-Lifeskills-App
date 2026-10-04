@@ -3,8 +3,13 @@ const { setGlobalOptions } = require("firebase-functions");
 const { onCall, HttpsError } = require("firebase-functions/v2/https");
 const { defineSecret } = require("firebase-functions/params");
 const { initializeApp } = require("firebase-admin/app");
+const { getAuth } = require("firebase-admin/auth");
 const { getStorage } = require("firebase-admin/storage");
-const { getFirestore, FieldValue } = require("firebase-admin/firestore");
+const {
+  getFirestore,
+  FieldValue,
+  FieldPath,
+} = require("firebase-admin/firestore");
 const OpenAI = require("openai");
 const crypto = require("crypto");
 
@@ -24,11 +29,6 @@ exports.generateVisualPlan = onCall(
   },
   async (request) => {
     try {
-
-      // --------------------------------------------------
-      // 1. GET THE LOGGED-IN STUDENT'S UID
-      // --------------------------------------------------
-
       const uid = request.auth?.uid;
 
       if (!uid) {
@@ -46,19 +46,9 @@ exports.generateVisualPlan = onCall(
       const barriers = data.barriers || "Not provided";
       const interests = data.interests || "Not provided";
 
-
-      // --------------------------------------------------
-      // 2. CREATE OPENAI CLIENT
-      // --------------------------------------------------
-
       const openai = new OpenAI({
         apiKey: openaiApiKey.value(),
       });
-
-
-      // --------------------------------------------------
-      // 3. CREATE IMAGE PROMPT
-      // --------------------------------------------------
 
       const prompt = `
 Create a portrait-oriented visual schedule poster for a child or
@@ -104,11 +94,6 @@ POSTER REQUIREMENTS:
   a parent could show directly to a child.
 `;
 
-
-      // --------------------------------------------------
-      // 4. GENERATE IMAGE
-      // --------------------------------------------------
-
       const image = await openai.images.generate({
         model: "gpt-image-1",
         prompt,
@@ -119,21 +104,10 @@ POSTER REQUIREMENTS:
       const base64Image = image.data?.[0]?.b64_json;
 
       if (!base64Image) {
-        throw new Error(
-          "OpenAI did not return image data."
-        );
+        throw new Error("OpenAI did not return image data.");
       }
 
-      const buffer = Buffer.from(
-        base64Image,
-        "base64"
-      );
-
-
-      // --------------------------------------------------
-      // 5. SAVE IMAGE UNDER THE STUDENT'S UID
-      // --------------------------------------------------
-
+      const buffer = Buffer.from(base64Image, "base64");
       const bucket = getStorage().bucket();
 
       const token = crypto.randomUUID();
@@ -157,23 +131,12 @@ POSTER REQUIREMENTS:
         },
       });
 
-
-      // --------------------------------------------------
-      // 6. CREATE DOWNLOAD URL
-      // --------------------------------------------------
-
-      const encodedFileName =
-        encodeURIComponent(fileName);
+      const encodedFileName = encodeURIComponent(fileName);
 
       const posterUrl =
         `https://firebasestorage.googleapis.com/v0/b/` +
         `${bucket.name}/o/${encodedFileName}` +
         `?alt=media&token=${token}`;
-
-
-      // --------------------------------------------------
-      // 7. SAVE IMAGE INFORMATION IN FIRESTORE
-      // --------------------------------------------------
 
       const db = getFirestore();
 
@@ -183,35 +146,21 @@ POSTER REQUIREMENTS:
         .collection("generatedVisuals")
         .add({
           studentId: uid,
-
-          skillId: skillId,
-          skill: skill,
-
-          posterUrl: posterUrl,
+          skillId,
+          skill,
+          posterUrl,
           storagePath: fileName,
-
           createdAt: FieldValue.serverTimestamp(),
         });
 
-
-      // --------------------------------------------------
-      // 8. RETURN RESULT TO THE APP
-      // --------------------------------------------------
-
       return {
         success: true,
-        posterUrl: posterUrl,
+        posterUrl,
         visualId: planRef.id,
       };
-
     } catch (error) {
+      console.error("Poster generation error:", error);
 
-      console.error(
-        "Poster generation error:",
-        error
-      );
-
-      // Preserve intentional Firebase errors
       if (error instanceof HttpsError) {
         throw error;
       }
@@ -219,6 +168,83 @@ POSTER REQUIREMENTS:
       throw new HttpsError(
         "internal",
         "Unable to generate the visual poster."
+      );
+    }
+  }
+);
+
+exports.deleteAccountData = onCall(
+  {
+    timeoutSeconds: 120,
+    memory: "512MiB",
+  },
+  async (request) => {
+    const uid = request.auth?.uid;
+
+    if (!uid) {
+      throw new HttpsError(
+        "unauthenticated",
+        "You must be signed in to delete your account."
+      );
+    }
+
+    const authTime = Number(request.auth?.token?.auth_time || 0);
+    const nowSeconds = Math.floor(Date.now() / 1000);
+
+    if (!authTime || nowSeconds - authTime > 10 * 60) {
+      throw new HttpsError(
+        "failed-precondition",
+        "Please sign in again before deleting your account."
+      );
+    }
+
+    try {
+      const db = getFirestore();
+      const bucket = getStorage().bucket();
+
+      // Remove every generated visual image stored under this account's UID.
+      await bucket.deleteFiles({
+        prefix: `visual-posters/${uid}/`,
+      });
+
+      // Recursively remove account documents and all nested subcollections,
+      // including studentProfiles/{uid}/generatedVisuals.
+      await Promise.all([
+        db.recursiveDelete(db.doc(`adultProfiles/${uid}`)),
+        db.recursiveDelete(db.doc(`studentProfiles/${uid}`)),
+        db.recursiveDelete(db.doc(`users/${uid}`)),
+      ]);
+
+      // parentAssistant stores daily usage in assistantUsage/{uid}_YYYY-MM-DD.
+      const usageSnapshot = await db
+        .collection("assistantUsage")
+        .where(FieldPath.documentId(), ">=", `${uid}_`)
+        .where(FieldPath.documentId(), "<", `${uid}_\uf8ff`)
+        .get();
+
+      if (!usageSnapshot.empty) {
+        const writer = db.bulkWriter();
+
+        usageSnapshot.docs.forEach((snapshot) => {
+          writer.delete(snapshot.ref);
+        });
+
+        await writer.close();
+      }
+
+      // Delete the Firebase Authentication account last so no account-owned
+      // data is left behind after the login is removed.
+      await getAuth().deleteUser(uid);
+
+      return {
+        success: true,
+      };
+    } catch (error) {
+      console.error("Account deletion error:", error);
+
+      throw new HttpsError(
+        "internal",
+        "Unable to completely delete the account."
       );
     }
   }
