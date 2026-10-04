@@ -2,7 +2,7 @@ import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 
-const rows = [
+const accountRows = [
   {
     title: 'Adult Profile',
     subtitle: 'View your account details, password options, and logout.',
@@ -21,6 +21,50 @@ const rows = [
   },
 ];
 
+const privacyRows = [
+  {
+    title: 'Privacy Policy',
+    subtitle: 'See how Independent Steps handles account and student information.',
+    icon: 'shield-checkmark-outline',
+    color: '#438A6A',
+    tint: '#E9F8F0',
+    route: '/privacy-policy',
+  },
+  {
+    title: 'Delete Account',
+    subtitle: 'Permanently delete your login and account-linked profile data.',
+    icon: 'trash-outline',
+    color: '#C93B3B',
+    tint: '#FFE8E8',
+    route: '/delete-account',
+  },
+];
+
+function SettingsRow({ row }) {
+  return (
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel={row.title}
+      onPress={() => router.push(row.route)}
+      style={({ pressed }) => [
+        styles.row,
+        pressed && styles.rowPressed,
+      ]}
+    >
+      <View style={[styles.iconWrap, { backgroundColor: row.tint }]}>
+        <Ionicons name={row.icon} size={28} color={row.color} />
+      </View>
+
+      <View style={styles.rowText}>
+        <Text style={styles.rowTitle}>{row.title}</Text>
+        <Text style={styles.rowSubtitle}>{row.subtitle}</Text>
+      </View>
+
+      <Ionicons name="chevron-forward" size={22} color="#8995A4" />
+    </Pressable>
+  );
+}
+
 export default function SettingsScreen() {
   return (
     <ScrollView style={styles.page} contentContainerStyle={styles.content}>
@@ -35,35 +79,14 @@ export default function SettingsScreen() {
         </Pressable>
 
         <Text style={styles.headerTitle}>Settings</Text>
-
         <View style={styles.headerButton} />
       </View>
 
       <Text style={styles.sectionLabel}>Account</Text>
+      {accountRows.map((row) => <SettingsRow key={row.title} row={row} />)}
 
-      {rows.map((row) => (
-        <Pressable
-          key={row.title}
-          accessibilityRole="button"
-          accessibilityLabel={row.title}
-          onPress={() => router.push(row.route)}
-          style={({ pressed }) => [
-            styles.row,
-            pressed && styles.rowPressed,
-          ]}
-        >
-          <View style={[styles.iconWrap, { backgroundColor: row.tint }]}>
-            <Ionicons name={row.icon} size={28} color={row.color} />
-          </View>
-
-          <View style={styles.rowText}>
-            <Text style={styles.rowTitle}>{row.title}</Text>
-            <Text style={styles.rowSubtitle}>{row.subtitle}</Text>
-          </View>
-
-          <Ionicons name="chevron-forward" size={22} color="#8995A4" />
-        </Pressable>
-      ))}
+      <Text style={styles.sectionLabel}>Privacy & Data</Text>
+      {privacyRows.map((row) => <SettingsRow key={row.title} row={row} />)}
 
       <View style={styles.infoCard}>
         <Ionicons name="shield-checkmark-outline" size={24} color="#438A6A" />
@@ -78,13 +101,8 @@ export default function SettingsScreen() {
 }
 
 const styles = StyleSheet.create({
-  page: {
-    flex: 1,
-    backgroundColor: '#F2F9FF',
-  },
-  content: {
-    paddingBottom: 40,
-  },
+  page: { flex: 1, backgroundColor: '#F2F9FF' },
+  content: { paddingBottom: 40 },
   header: {
     paddingTop: 56,
     paddingHorizontal: 18,
@@ -100,11 +118,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  headerTitle: {
-    fontSize: 22,
-    fontWeight: '800',
-    color: '#17213A',
-  },
+  headerTitle: { fontSize: 22, fontWeight: '800', color: '#17213A' },
   sectionLabel: {
     marginTop: 28,
     marginBottom: 10,
@@ -130,9 +144,7 @@ const styles = StyleSheet.create({
     shadowRadius: 12,
     elevation: 2,
   },
-  rowPressed: {
-    opacity: 0.75,
-  },
+  rowPressed: { opacity: 0.75 },
   iconWrap: {
     width: 54,
     height: 54,
@@ -140,14 +152,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  rowText: {
-    flex: 1,
-  },
-  rowTitle: {
-    fontSize: 18,
-    fontWeight: '800',
-    color: '#17213A',
-  },
+  rowText: { flex: 1 },
+  rowTitle: { fontSize: 18, fontWeight: '800', color: '#17213A' },
   rowSubtitle: {
     marginTop: 4,
     fontSize: 14,
@@ -163,11 +169,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     gap: 10,
   },
-  infoText: {
-    flex: 1,
-    color: '#426557',
-    lineHeight: 20,
-  },
+  infoText: { flex: 1, color: '#426557', lineHeight: 20 },
   footer: {
     textAlign: 'center',
     color: '#8995A4',
