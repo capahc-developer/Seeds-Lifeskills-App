@@ -1,7 +1,10 @@
 import { useEffect, useState } from 'react';
 import {
   ActivityIndicator,
+  Alert,
   Image,
+  Linking,
+  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -32,6 +35,7 @@ export default function VisualDetail() {
 
   const [visual, setVisual] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [downloading, setDownloading] = useState(false);
   const [error, setError] = useState('');
 
   useEffect(() => {
@@ -82,6 +86,56 @@ export default function VisualDetail() {
       );
     } finally {
       setLoading(false);
+    }
+  }
+
+  async function downloadVisual() {
+    if (!visual?.posterUrl) return;
+
+    try {
+      setDownloading(true);
+
+      const safeName = String(visual.skill || 'saved-visual')
+        .trim()
+        .replace(/[^a-zA-Z0-9_-]+/g, '-')
+        .replace(/^-+|-+$/g, '')
+        .toLowerCase();
+
+      if (Platform.OS === 'web') {
+        const response = await fetch(visual.posterUrl);
+
+        if (!response.ok) {
+          throw new Error('Could not download image.');
+        }
+
+        const blob = await response.blob();
+        const objectUrl = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+
+        link.href = objectUrl;
+        link.download = `${safeName || 'saved-visual'}.png`;
+        document.body.appendChild(link);
+        link.click();
+        link.remove();
+
+        URL.revokeObjectURL(objectUrl);
+      } else {
+        await Linking.openURL(visual.posterUrl);
+
+        Alert.alert(
+          'Save Visual',
+          'The visual has been opened. Use your device’s save or share option to keep a copy.'
+        );
+      }
+    } catch (err) {
+      console.error('Visual download failed:', err);
+
+      Alert.alert(
+        'Could not download visual',
+        'Please try again.'
+      );
+    } finally {
+      setDownloading(false);
     }
   }
 
@@ -173,6 +227,30 @@ export default function VisualDetail() {
               );
             }}
           />
+
+          <Pressable
+            style={({ pressed }) => [
+              s.downloadButton,
+              pressed && s.downloadButtonPressed,
+              downloading && s.downloadButtonDisabled,
+            ]}
+            onPress={downloadVisual}
+            disabled={downloading}
+          >
+            {downloading ? (
+              <ActivityIndicator color="#FFF" />
+            ) : (
+              <Ionicons
+                name="download-outline"
+                size={21}
+                color="#FFF"
+              />
+            )}
+
+            <Text style={s.downloadButtonText}>
+              {downloading ? 'Downloading...' : 'Download Visual'}
+            </Text>
+          </Pressable>
         </View>
       </ScrollView>
     </View>
@@ -238,5 +316,31 @@ const s = StyleSheet.create({
     aspectRatio: 2 / 3,
     backgroundColor: '#FFF',
     borderRadius: 14,
+  },
+
+  downloadButton: {
+    marginTop: 16,
+    backgroundColor: '#258DEB',
+    borderRadius: 14,
+    paddingVertical: 14,
+    paddingHorizontal: 18,
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    gap: 8,
+  },
+
+  downloadButtonPressed: {
+    opacity: 0.85,
+  },
+
+  downloadButtonDisabled: {
+    opacity: 0.6,
+  },
+
+  downloadButtonText: {
+    color: '#FFF',
+    fontSize: 16,
+    fontWeight: '800',
   },
 });
