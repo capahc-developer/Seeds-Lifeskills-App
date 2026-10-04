@@ -9,7 +9,8 @@
     "ios": "expo start --ios",
     "web": "expo start --web",
     "lint": "expo lint",
-    "testflight": "eas build --platform ios --profile production --auto-submit"
+    "testflight": "eas build --platform ios --profile production --auto-submit",
+    "seed:strategies": "node ./scripts/seedStrategyGuides.mjs"
   },
   "dependencies": {
     "@expo/vector-icons": "^15.0.3",
