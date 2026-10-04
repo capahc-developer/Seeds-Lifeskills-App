@@ -294,8 +294,13 @@ exports.deleteAccountData = onCall(
       }
 
       throw new HttpsError(
-        "internal",
-        `Account deletion failed while ${stage}: ${error?.message || "unknown error"}`
+        "failed-precondition",
+        `Account deletion failed while ${stage}.`,
+        {
+          stage,
+          backendMessage: error?.message || "unknown error",
+          backendCode: error?.code || null,
+        }
       );
     }
   }
