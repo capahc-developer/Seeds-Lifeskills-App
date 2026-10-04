@@ -14,15 +14,7 @@ const cards = [
     color: '#A9690B',
     route: '/parent-assistant',
   },
-  {
-    title: 'Student Profile',
-    subtitle:
-      "Tell us about your child's strengths, learning barriers, and interests.",
-    icon: 'person-circle-outline',
-    tint: '#E6F2FF',
-    color: '#3B82F6',
-    route: '/student-profile',
-  },
+
   {
     title: 'Your Skills',
     subtitle:
