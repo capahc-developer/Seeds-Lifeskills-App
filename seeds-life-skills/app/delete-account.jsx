@@ -130,7 +130,7 @@ export default function DeleteAccountScreen() {
       ) {
         setPasswordError(true);
         setValidationError(
-          'The password you entered is incorrect. Please try again.'
+          'Firebase rejected the password for this account. Re-enter the same password you use to sign in, or reset your password from Adult Profile and try again.'
         );
       } else if (
         error?.code === 'functions/failed-precondition' ||
@@ -187,6 +187,15 @@ export default function DeleteAccountScreen() {
       <View style={styles.bannerWrap}>
         <ValidationBanner message={validationError} />
       </View>
+
+      {!usesPasswordProvider && (
+        <View style={styles.providerNotice}>
+          <Ionicons name="information-circle-outline" size={20} color="#7F2323" />
+          <Text style={styles.providerNoticeText}>
+            This signed-in account does not use email/password authentication. Account deletion needs a matching re-authentication method before it can continue.
+          </Text>
+        </View>
+      )}
 
       <View style={styles.card}>
         {usesPassword && (
@@ -376,6 +385,24 @@ const styles = StyleSheet.create({
   bannerWrap: {
     marginHorizontal: 20,
     marginTop: 22,
+  },
+  providerNotice: {
+    marginHorizontal: 20,
+    marginBottom: 10,
+    padding: 14,
+    borderRadius: 12,
+    backgroundColor: '#FFF1F0',
+    borderWidth: 1,
+    borderColor: '#FDA29B',
+    flexDirection: 'row',
+    gap: 8,
+  },
+  providerNoticeText: {
+    flex: 1,
+    color: '#7F2323',
+    fontSize: 13,
+    lineHeight: 18,
+    fontWeight: '600',
   },
   card: {
     margin: 20,
