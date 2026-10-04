@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
+  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -107,7 +108,30 @@ export default function ProfileScreen() {
     }
   };
 
+  const performLogout = async () => {
+    try {
+      setLoggingOut(true);
+      await signOut(auth);
+      router.replace('/login');
+    } catch (error) {
+      console.error('Logout error:', error);
+      Alert.alert('Could not log out', 'Please try again.');
+      setLoggingOut(false);
+    }
+  };
+
   const handleLogout = () => {
+    if (Platform.OS === 'web') {
+      const confirmed = window.confirm(
+        'Log out?\n\nYou will need to sign in again to access Independent Steps.'
+      );
+
+      if (confirmed) {
+        performLogout();
+      }
+      return;
+    }
+
     Alert.alert(
       'Log out?',
       'You will need to sign in again to access Independent Steps.',
@@ -116,17 +140,7 @@ export default function ProfileScreen() {
         {
           text: 'Log Out',
           style: 'destructive',
-          onPress: async () => {
-            try {
-              setLoggingOut(true);
-              await signOut(auth);
-              router.replace('/login');
-            } catch (error) {
-              console.error('Logout error:', error);
-              Alert.alert('Could not log out', 'Please try again.');
-              setLoggingOut(false);
-            }
-          },
+          onPress: performLogout,
         },
       ]
     );
