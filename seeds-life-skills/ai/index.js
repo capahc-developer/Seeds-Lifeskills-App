@@ -26,6 +26,7 @@ exports.generateVisualPlan = onCall(
     secrets: [openaiApiKey],
     timeoutSeconds: 120,
     memory: "512MiB",
+    invoker: "public",
   },
   async (request) => {
     try {
