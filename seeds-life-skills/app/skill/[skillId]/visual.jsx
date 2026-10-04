@@ -4,7 +4,6 @@ import {
   Alert,
   Image,
   Linking,
-  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -84,44 +83,17 @@ export default function Visual() {
 
     try {
       setDownloading(true);
+      await Linking.openURL(posterUrl);
 
-      const safeName = String(skill.title || 'generated-visual')
-        .trim()
-        .replace(/[^a-zA-Z0-9_-]+/g, '-')
-        .replace(/^-+|-+$/g, '')
-        .toLowerCase();
-
-      if (Platform.OS === 'web') {
-        const response = await fetch(posterUrl);
-
-        if (!response.ok) {
-          throw new Error('Could not download image.');
-        }
-
-        const blob = await response.blob();
-        const objectUrl = URL.createObjectURL(blob);
-        const link = document.createElement('a');
-
-        link.href = objectUrl;
-        link.download = `${safeName || 'generated-visual'}.png`;
-        document.body.appendChild(link);
-        link.click();
-        link.remove();
-
-        URL.revokeObjectURL(objectUrl);
-      } else {
-        await Linking.openURL(posterUrl);
-
-        Alert.alert(
-          'Save Visual',
-          'The visual has been opened. Use your device’s save or share option to keep a copy.'
-        );
-      }
+      Alert.alert(
+        'Save Visual',
+        'The visual has been opened. Use your device or browser save option to keep a copy.'
+      );
     } catch (error) {
       console.error('Visual download failed:', error);
 
       Alert.alert(
-        'Could not download visual',
+        'Could not open visual',
         'Please try again.'
       );
     } finally {
@@ -130,32 +102,21 @@ export default function Visual() {
   }
 
   return (
-    <ScrollView
-      style={s.page}
-      contentContainerStyle={s.content}
-    >
+    <ScrollView style={s.page} contentContainerStyle={s.content}>
       <View style={s.header}>
         <Pressable onPress={() => router.back()}>
           <Ionicons name="chevron-back" size={28} />
         </Pressable>
 
         <Text style={s.title}>Step-by-Step Visual</Text>
-
         <View style={{ width: 28 }} />
       </View>
 
       <View style={s.hero}>
-        <Ionicons
-          name="sparkles"
-          size={34}
-          color="#7559E8"
-        />
+        <Ionicons name="sparkles" size={34} color="#7559E8" />
 
         <View style={{ flex: 1 }}>
-          <Text style={s.heroTitle}>
-            Personalized Visual
-          </Text>
-
+          <Text style={s.heroTitle}>Personalized Visual</Text>
           <Text style={s.intro}>
             Create a personalized visual poster for {skill.title}.
           </Text>
@@ -188,11 +149,7 @@ export default function Visual() {
         {loading ? (
           <ActivityIndicator color="#FFF" />
         ) : (
-          <Ionicons
-            name="sparkles"
-            size={20}
-            color="#FFF"
-          />
+          <Ionicons name="sparkles" size={20} color="#FFF" />
         )}
 
         <Text style={s.buttonText}>
@@ -206,16 +163,8 @@ export default function Visual() {
 
       {loading && (
         <View style={s.loadingCard}>
-          <Ionicons
-            name="image-outline"
-            size={44}
-            color="#7559E8"
-          />
-
-          <Text style={s.loadingTitle}>
-            Creating your visual...
-          </Text>
-
+          <Ionicons name="image-outline" size={44} color="#7559E8" />
+          <Text style={s.loadingTitle}>Creating your visual...</Text>
           <Text style={s.loadingText}>
             Your personalized poster is being created.
             This can take a little while.
@@ -234,16 +183,9 @@ export default function Visual() {
             source={{ uri: posterUrl }}
             style={s.poster}
             resizeMode="contain"
-            onLoad={() => {
-              console.log(
-                'Poster image loaded successfully'
-              );
-            }}
+            onLoad={() => console.log('Poster image loaded successfully')}
             onError={(event) => {
-              console.error(
-                'Poster image failed to load:',
-                event.nativeEvent.error
-              );
+              console.error('Poster image failed to load:', event.nativeEvent.error);
             }}
           />
 
@@ -259,15 +201,11 @@ export default function Visual() {
             {downloading ? (
               <ActivityIndicator color="#FFF" />
             ) : (
-              <Ionicons
-                name="download-outline"
-                size={20}
-                color="#FFF"
-              />
+              <Ionicons name="download-outline" size={20} color="#FFF" />
             )}
 
             <Text style={s.buttonText}>
-              {downloading ? 'Downloading...' : 'Download Visual'}
+              {downloading ? 'Opening...' : 'Download Visual'}
             </Text>
           </Pressable>
 
@@ -282,15 +220,8 @@ export default function Visual() {
 }
 
 const s = StyleSheet.create({
-  page: {
-    flex: 1,
-    backgroundColor: '#F2F9FF',
-  },
-
-  content: {
-    paddingBottom: 40,
-  },
-
+  page: { flex: 1, backgroundColor: '#F2F9FF' },
+  content: { paddingBottom: 40 },
   header: {
     paddingTop: 56,
     paddingHorizontal: 20,
@@ -300,12 +231,7 @@ const s = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
   },
-
-  title: {
-    fontSize: 20,
-    fontWeight: '800',
-  },
-
+  title: { fontSize: 20, fontWeight: '800' },
   hero: {
     margin: 18,
     backgroundColor: '#FFF',
@@ -314,18 +240,8 @@ const s = StyleSheet.create({
     flexDirection: 'row',
     gap: 13,
   },
-
-  heroTitle: {
-    fontSize: 18,
-    fontWeight: '800',
-  },
-
-  intro: {
-    color: '#718096',
-    lineHeight: 20,
-    marginTop: 5,
-  },
-
+  heroTitle: { fontSize: 18, fontWeight: '800' },
+  intro: { color: '#718096', lineHeight: 20, marginTop: 5 },
   warning: {
     marginHorizontal: 18,
     backgroundColor: '#FFF5D9',
@@ -334,13 +250,7 @@ const s = StyleSheet.create({
     flexDirection: 'row',
     gap: 9,
   },
-
-  warningText: {
-    flex: 1,
-    color: '#76520E',
-    lineHeight: 19,
-  },
-
+  warningText: { flex: 1, color: '#76520E', lineHeight: 19 },
   button: {
     margin: 18,
     backgroundColor: '#258DEB',
@@ -351,7 +261,6 @@ const s = StyleSheet.create({
     alignItems: 'center',
     gap: 9,
   },
-
   downloadButton: {
     marginTop: 16,
     backgroundColor: '#258DEB',
@@ -363,21 +272,9 @@ const s = StyleSheet.create({
     alignItems: 'center',
     gap: 8,
   },
-
-  downloadButtonPressed: {
-    opacity: 0.85,
-  },
-
-  disabledButton: {
-    opacity: 0.6,
-  },
-
-  buttonText: {
-    color: '#FFF',
-    fontSize: 16,
-    fontWeight: '800',
-  },
-
+  downloadButtonPressed: { opacity: 0.85 },
+  disabledButton: { opacity: 0.6 },
+  buttonText: { color: '#FFF', fontSize: 16, fontWeight: '800' },
   loadingCard: {
     marginHorizontal: 18,
     marginBottom: 18,
@@ -386,20 +283,13 @@ const s = StyleSheet.create({
     padding: 28,
     alignItems: 'center',
   },
-
-  loadingTitle: {
-    fontSize: 18,
-    fontWeight: '800',
-    marginTop: 12,
-  },
-
+  loadingTitle: { fontSize: 18, fontWeight: '800', marginTop: 12 },
   loadingText: {
     color: '#718096',
     textAlign: 'center',
     lineHeight: 20,
     marginTop: 7,
   },
-
   posterCard: {
     marginHorizontal: 18,
     marginBottom: 36,
@@ -407,21 +297,18 @@ const s = StyleSheet.create({
     borderRadius: 20,
     padding: 14,
   },
-
   posterHeading: {
     fontSize: 20,
     fontWeight: '800',
     textAlign: 'center',
     marginBottom: 14,
   },
-
   poster: {
     width: '100%',
     height: 520,
     backgroundColor: '#F7F8FA',
     borderRadius: 12,
   },
-
   disclaimer: {
     fontSize: 12,
     color: '#8A94A3',
