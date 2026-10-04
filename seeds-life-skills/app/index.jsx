@@ -6,12 +6,69 @@ import { useStudentProfile } from '../context/StudentProfileContext';
 import { auth } from '../lib/firebase';
 
 const cards = [
-  { title: 'Parent Assistant', subtitle: 'Ask a question or create a practice activity.', icon: 'sparkles-outline', tint: '#FFF3DE', color: '#A9690B', route: '/parent-assistant' },
-  { title: 'Student Profile', subtitle: "Tell us about your child's strengths, learning barriers, and interests.", icon: 'person-circle-outline', tint: '#E6F2FF', color: '#3B82F6', route: '/student-profile' },
-  { title: 'Your Skills', subtitle: 'Practice skills selected for your child. Morning Routine is included as an example.', icon: 'apps-outline', tint: '#EEE9FF', color: '#7C5CE7', route: '/all-skills' },
-  { title: 'General Strategies', subtitle: 'Browse practical teaching strategies you can use across everyday skills.', icon: 'bulb-outline', tint: '#E8F7F2', color: '#248A6B', route: '/general-strategies' },
-  { title: 'Practice Log', subtitle: 'Track progress and practice attempts.', icon: 'clipboard-outline', tint: '#E3F8EE', color: '#2FB578', route: '/assignments' },
-  { title: 'Reports', subtitle: "See your child's progress over time.", icon: 'bar-chart-outline', tint: '#FFE9E7', color: '#FF7474', route: '/reports' },
+  {
+    title: 'Parent Assistant',
+    subtitle: 'Ask a question or create a practice activity.',
+    icon: 'sparkles-outline',
+    tint: '#FFF3DE',
+    color: '#A9690B',
+    route: '/parent-assistant',
+  },
+  {
+    title: 'Student Profile',
+    subtitle:
+      "Tell us about your child's strengths, learning barriers, and interests.",
+    icon: 'person-circle-outline',
+    tint: '#E6F2FF',
+    color: '#3B82F6',
+    route: '/student-profile',
+  },
+  {
+    title: 'Your Skills',
+    subtitle:
+      'Practice skills selected for your child. Morning Routine is included as an example.',
+    icon: 'apps-outline',
+    tint: '#EEE9FF',
+    color: '#7C5CE7',
+    route: '/all-skills',
+  },
+
+  // NEW
+  {
+    title: 'My Visuals',
+    subtitle:
+      'View personalized visual guides created for your child.',
+    icon: 'images-outline',
+    tint: '#F2EAFE',
+    color: '#7559E8',
+    route: '/my-visuals',
+  },
+
+  {
+    title: 'General Strategies',
+    subtitle:
+      'Browse practical teaching strategies you can use across everyday skills.',
+    icon: 'bulb-outline',
+    tint: '#E8F7F2',
+    color: '#248A6B',
+    route: '/general-strategies',
+  },
+  {
+    title: 'Practice Log',
+    subtitle: 'Track progress and practice attempts.',
+    icon: 'clipboard-outline',
+    tint: '#E3F8EE',
+    color: '#2FB578',
+    route: '/assignments',
+  },
+  {
+    title: 'Reports',
+    subtitle: "See your child's progress over time.",
+    icon: 'bar-chart-outline',
+    tint: '#FFE9E7',
+    color: '#FF7474',
+    route: '/reports',
+  },
 ];
 
 export default function HomeScreen() {

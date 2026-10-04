@@ -19,7 +19,14 @@ import { functions } from '../../../lib/firebase';
 
 export default function Visual() {
   const { skillId } = useLocalSearchParams();
-  const skill = findSkill(skillId);
+
+  // useLocalSearchParams can technically return an array,
+  // so make sure we have a single string value.
+  const resolvedSkillId = Array.isArray(skillId)
+    ? skillId[0]
+    : skillId;
+
+  const skill = findSkill(resolvedSkillId);
   const { profile } = useStudentProfile();
 
   const [loading, setLoading] = useState(false);
@@ -42,6 +49,10 @@ export default function Visual() {
       );
 
       const response = await generateVisualPlan({
+        // Send the skill ID so the backend can save
+        // which skill this generated visual belongs to.
+        skillId: resolvedSkillId,
+
         skill: skill.title,
         strengths: profile.strengths || '',
         barriers: profile.barriers || '',
@@ -58,6 +69,9 @@ export default function Visual() {
 
       console.log('Poster URL:', url);
 
+      // The backend will save the generated image.
+      // The frontend only needs the permanent URL
+      // returned by the Firebase Function.
       setPosterUrl(url);
     } catch (error) {
       console.error('Error generating visual:', error);
@@ -177,7 +191,9 @@ export default function Visual() {
             style={s.poster}
             resizeMode="contain"
             onLoad={() => {
-              console.log('Poster image loaded successfully');
+              console.log(
+                'Poster image loaded successfully'
+              );
             }}
             onError={(event) => {
               console.error(
