@@ -11,22 +11,20 @@ import {
 import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import {
-  deleteUser,
   EmailAuthProvider,
   reauthenticateWithCredential,
+  signOut,
 } from 'firebase/auth';
-import {
-  collection,
-  deleteDoc,
-  doc,
-  getDocs,
-} from 'firebase/firestore';
+import { httpsCallable } from 'firebase/functions';
 
 import ValidationBanner from '../components/ValidationBanner';
-import { auth, db } from '../lib/firebase';
+import { auth, functions } from '../lib/firebase';
 
 export default function DeleteAccountScreen() {
   const user = auth.currentUser;
+  const usesPassword = user?.providerData?.some(
+    (provider) => provider.providerId === 'password'
+  );
 
   const [password, setPassword] = useState('');
   const [confirmation, setConfirmation] = useState('');
@@ -38,7 +36,7 @@ export default function DeleteAccountScreen() {
   const [confirmationError, setConfirmationError] = useState(false);
 
   const validate = () => {
-    const missingPassword = !password.trim();
+    const missingPassword = usesPassword && !password.trim();
     const invalidConfirmation =
       confirmation.trim().toUpperCase() !== 'DELETE';
 
@@ -75,20 +73,9 @@ export default function DeleteAccountScreen() {
     setShowFinalConfirm(true);
   };
 
-  const deleteCollectionDocs = async (pathParts) => {
-    const ref = collection(db, ...pathParts);
-    const snapshot = await getDocs(ref);
-
-    await Promise.all(
-      snapshot.docs.map((item) => deleteDoc(item.ref))
-    );
-  };
-
   const deleteAccount = async () => {
-    if (!user?.email) {
-      setValidationError(
-        'No email address is associated with this account, so deletion cannot continue.'
-      );
+    if (!user) {
+      setValidationError('You are not signed in. Please sign in and try again.');
       return;
     }
 
@@ -98,31 +85,43 @@ export default function DeleteAccountScreen() {
       setDeleting(true);
       setValidationError('');
 
-      // Firebase requires a recent login before deleting an auth account.
-      const credential = EmailAuthProvider.credential(
-        user.email,
-        password
+      // Email/password accounts reauthenticate immediately before deletion.
+      if (usesPassword) {
+        if (!user.email) {
+          throw new Error('No email address is associated with this account.');
+        }
+
+        const credential = EmailAuthProvider.credential(
+          user.email,
+          password
+        );
+
+        await reauthenticateWithCredential(user, credential);
+      }
+
+      // Refresh the ID token so the backend can verify this is a recent login.
+      await user.getIdToken(true);
+
+      // The backend deletes all Firestore data, generated images in Storage,
+      // assistant usage records, and finally the Firebase Authentication user.
+      const deleteAccountData = httpsCallable(
+        functions,
+        'deleteAccountData'
       );
 
-      await reauthenticateWithCredential(user, credential);
+      await deleteAccountData({});
 
-      const uid = user.uid;
-
-      // Delete account-owned Firestore data while the user is still authenticated.
-      await Promise.all([
-        deleteDoc(doc(db, 'adultProfiles', uid)),
-        deleteDoc(doc(db, 'studentProfiles', uid)),
-        deleteCollectionDocs(['users', uid, 'practiceLog']),
-        deleteCollectionDocs(['users', uid, 'practicePlans']),
-      ]);
-
-      // Delete the Firebase Authentication user last.
-      await deleteUser(user);
+      // Clear any remaining local Firebase session after the server removes
+      // the Authentication user.
+      try {
+        await signOut(auth);
+      } catch (signOutError) {
+        console.log('Local sign-out after deletion:', signOutError?.code);
+      }
 
       router.replace('/login');
     } catch (error) {
       console.error('Account deletion error:', error);
-
       setShowFinalConfirm(false);
 
       if (
@@ -133,17 +132,16 @@ export default function DeleteAccountScreen() {
         setValidationError(
           'The password you entered is incorrect. Please try again.'
         );
-      } else if (error?.code === 'auth/requires-recent-login') {
+      } else if (
+        error?.code === 'functions/failed-precondition' ||
+        error?.code === 'auth/requires-recent-login'
+      ) {
         setValidationError(
           'For security, please sign out, sign back in, and try deleting your account again.'
         );
-      } else if (error?.code === 'permission-denied') {
-        setValidationError(
-          'Firebase blocked part of the deletion. Please make sure the latest Firestore rules are deployed, then try again.'
-        );
       } else {
         setValidationError(
-          `Account deletion failed${error?.code ? ` (${error.code})` : ''}. Your account is still active. Please try again.`
+          `Account deletion failed${error?.code ? ` (${error.code})` : ''}. Please try again.`
         );
       }
     } finally {
@@ -181,7 +179,8 @@ export default function DeleteAccountScreen() {
 
       <Text style={styles.body}>
         This removes your Independent Steps login, adult profile, student
-        profile, practice records, and saved practice plans. This action cannot
+        profile, generated visuals, generated image files, practice records,
+        saved practice plans, and account-linked usage data. This action cannot
         be undone.
       </Text>
 
@@ -190,28 +189,40 @@ export default function DeleteAccountScreen() {
       </View>
 
       <View style={styles.card}>
-        <Text style={styles.label}>
-          Current password <Text style={styles.required}>*</Text>
-        </Text>
+        {usesPassword && (
+          <>
+            <Text style={styles.label}>
+              Current password <Text style={styles.required}>*</Text>
+            </Text>
 
-        <TextInput
-          value={password}
-          onChangeText={(value) => {
-            setPassword(value);
-            setPasswordError(false);
-            setValidationError('');
-            setShowFinalConfirm(false);
-          }}
-          placeholder="Enter your password"
-          secureTextEntry
-          autoCapitalize="none"
-          autoCorrect={false}
-          style={[styles.input, passwordError && styles.inputError]}
-        />
+            <TextInput
+              value={password}
+              onChangeText={(value) => {
+                setPassword(value);
+                setPasswordError(false);
+                setValidationError('');
+                setShowFinalConfirm(false);
+              }}
+              placeholder="Enter your password"
+              secureTextEntry
+              autoCapitalize="none"
+              autoCorrect={false}
+              style={[styles.input, passwordError && styles.inputError]}
+            />
 
-        {passwordError && (
-          <Text style={styles.fieldErrorText}>
-            Enter the correct current password.
+            {passwordError && (
+              <Text style={styles.fieldErrorText}>
+                Enter the correct current password.
+              </Text>
+            )}
+          </>
+        )}
+
+        {!usesPassword && (
+          <Text style={styles.providerNote}>
+            For security, account deletion requires a recent sign-in. If your
+            session is too old, you will be asked to sign in again before trying
+            again.
           </Text>
         )}
 
@@ -266,7 +277,7 @@ export default function DeleteAccountScreen() {
           </Text>
 
           <Text style={styles.finalConfirmText}>
-            Are you absolutely sure? Your account and account-linked data will
+            Are you absolutely sure? Your login and all account-linked data will
             be permanently deleted.
           </Text>
 
@@ -302,8 +313,7 @@ export default function DeleteAccountScreen() {
       )}
 
       <Text style={styles.footer}>
-        If deletion fails, your account remains active. Deletion is complete
-        only after you are returned to the login screen.
+        Deletion is complete only after you are returned to the login screen.
       </Text>
     </ScrollView>
   );
@@ -382,6 +392,12 @@ const styles = StyleSheet.create({
   },
   required: {
     color: '#B42318',
+  },
+  providerNote: {
+    marginBottom: 18,
+    fontSize: 14,
+    lineHeight: 20,
+    color: '#6E5555',
   },
   input: {
     marginBottom: 6,
