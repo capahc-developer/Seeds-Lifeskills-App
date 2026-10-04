@@ -41,17 +41,9 @@ export default function LoginScreen() {
       }
 
       if (createAccount) {
-        await createUserWithEmailAndPassword(
-          auth,
-          cleanEmail,
-          password
-        );
+        await createUserWithEmailAndPassword(auth, cleanEmail, password);
       } else {
-        await signInWithEmailAndPassword(
-          auth,
-          cleanEmail,
-          password
-        );
+        await signInWithEmailAndPassword(auth, cleanEmail, password);
       }
 
       router.replace("/");
@@ -62,21 +54,17 @@ export default function LoginScreen() {
         case "auth/email-already-in-use":
           setError("An account with this email already exists.");
           break;
-
         case "auth/invalid-email":
           setError("Please enter a valid email address.");
           break;
-
         case "auth/weak-password":
           setError("Your password must be at least 6 characters.");
           break;
-
         case "auth/invalid-credential":
         case "auth/user-not-found":
         case "auth/wrong-password":
           setError("Incorrect email or password.");
           break;
-
         default:
           setError(
             err?.message ??
@@ -97,9 +85,7 @@ export default function LoginScreen() {
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.content}>
-        <Text style={styles.title}>
-          Independent Steps
-        </Text>
+        <Text style={styles.title}>Independent Steps</Text>
 
         <Text style={styles.subtitle}>
           {createAccount
@@ -127,9 +113,7 @@ export default function LoginScreen() {
           onChangeText={setPassword}
           secureTextEntry
           autoCapitalize="none"
-          textContentType={
-            createAccount ? "newPassword" : "password"
-          }
+          textContentType={createAccount ? "newPassword" : "password"}
         />
 
         <TouchableOpacity
@@ -141,17 +125,25 @@ export default function LoginScreen() {
             <ActivityIndicator color="#FFFFFF" />
           ) : (
             <Text style={styles.primaryButtonText}>
-              {createAccount
-                ? "Create Account"
-                : "Sign In"}
+              {createAccount ? "Create Account" : "Sign In"}
             </Text>
           )}
         </TouchableOpacity>
 
-        <TouchableOpacity
-          onPress={toggleMode}
-          disabled={loading}
-        >
+        {createAccount && (
+          <Text style={styles.privacyText}>
+            By creating an account, you acknowledge the{" "}
+            <Text
+              style={styles.privacyLink}
+              onPress={() => router.push("/privacy-policy")}
+            >
+              Privacy Policy
+            </Text>
+            .
+          </Text>
+        )}
+
+        <TouchableOpacity onPress={toggleMode} disabled={loading}>
           <Text style={styles.switchText}>
             {createAccount
               ? "Already have an account? Sign in"
@@ -159,11 +151,7 @@ export default function LoginScreen() {
           </Text>
         </TouchableOpacity>
 
-        {error && (
-          <Text style={styles.errorText}>
-            {error}
-          </Text>
-        )}
+        {error && <Text style={styles.errorText}>{error}</Text>}
       </View>
     </SafeAreaView>
   );
@@ -174,20 +162,17 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: "#F4FAF7",
   },
-
   content: {
     flex: 1,
     justifyContent: "center",
     paddingHorizontal: 30,
   },
-
   title: {
     fontSize: 32,
     fontWeight: "800",
     textAlign: "center",
     color: "#2F3B45",
   },
-
   subtitle: {
     fontSize: 15,
     textAlign: "center",
@@ -195,7 +180,6 @@ const styles = StyleSheet.create({
     marginTop: 8,
     marginBottom: 32,
   },
-
   input: {
     backgroundColor: "#FFFFFF",
     borderWidth: 1,
@@ -207,7 +191,6 @@ const styles = StyleSheet.create({
     color: "#2F3B45",
     marginBottom: 14,
   },
-
   primaryButton: {
     backgroundColor: "#55A8F7",
     borderRadius: 12,
@@ -215,13 +198,23 @@ const styles = StyleSheet.create({
     alignItems: "center",
     marginTop: 4,
   },
-
   primaryButtonText: {
     color: "#FFFFFF",
     fontSize: 16,
     fontWeight: "700",
   },
-
+  privacyText: {
+    marginTop: 14,
+    textAlign: "center",
+    fontSize: 12,
+    lineHeight: 18,
+    color: "#7A8495",
+  },
+  privacyLink: {
+    color: "#258DEB",
+    fontWeight: "700",
+    textDecorationLine: "underline",
+  },
   switchText: {
     textAlign: "center",
     color: "#55A8F7",
@@ -229,7 +222,6 @@ const styles = StyleSheet.create({
     fontWeight: "600",
     marginTop: 18,
   },
-
   errorText: {
     color: "#C62828",
     textAlign: "center",
