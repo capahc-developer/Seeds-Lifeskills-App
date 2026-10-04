@@ -198,17 +198,52 @@ exports.deleteAccountData = onCall(
       );
     }
 
+    const db = getFirestore();
+
     try {
-      const db = getFirestore();
-      const bucket = getStorage().bucket();
+      // Delete generated image files first. New Firebase projects commonly use
+      // <project-id>.firebasestorage.app, while older projects use appspot.com.
+      // A missing/unused bucket should not prevent deletion of the account.
+      const projectId =
+        process.env.GCLOUD_PROJECT ||
+        process.env.GCP_PROJECT ||
+        "seeds-life-skills";
 
-      // Remove every generated visual image stored under this account's UID.
-      await bucket.deleteFiles({
-        prefix: `visual-posters/${uid}/`,
-      });
+      const bucketNames = [
+        `${projectId}.firebasestorage.app`,
+        `${projectId}.appspot.com`,
+      ];
 
-      // Recursively remove account documents and all nested subcollections,
-      // including studentProfiles/{uid}/generatedVisuals.
+      let storageDeleted = false;
+
+      for (const bucketName of bucketNames) {
+        try {
+          const bucket = getStorage().bucket(bucketName);
+
+          const [exists] = await bucket.exists();
+          if (!exists) continue;
+
+          await bucket.deleteFiles({
+            prefix: `visual-posters/${uid}/`,
+          });
+
+          storageDeleted = true;
+          break;
+        } catch (storageError) {
+          console.warn(
+            `Skipping unavailable Storage bucket ${bucketName}:`,
+            storageError?.message || storageError
+          );
+        }
+      }
+
+      if (!storageDeleted) {
+        console.log(
+          "No accessible Storage bucket found or no generated image files needed deletion."
+        );
+      }
+
+      // Remove account documents and nested subcollections.
       await Promise.all([
         db.recursiveDelete(db.doc(`adultProfiles/${uid}`)),
         db.recursiveDelete(db.doc(`studentProfiles/${uid}`)),
@@ -219,7 +254,7 @@ exports.deleteAccountData = onCall(
       const usageSnapshot = await db
         .collection("assistantUsage")
         .where(FieldPath.documentId(), ">=", `${uid}_`)
-        .where(FieldPath.documentId(), "<", `${uid}_\uf8ff`)
+        .where(FieldPath.documentId(), "<", `${uid}_\\uf8ff`)
         .get();
 
       if (!usageSnapshot.empty) {
@@ -232,15 +267,22 @@ exports.deleteAccountData = onCall(
         await writer.close();
       }
 
-      // Delete the Firebase Authentication account last so no account-owned
-      // data is left behind after the login is removed.
+      // Delete the Firebase Authentication account last.
       await getAuth().deleteUser(uid);
 
       return {
         success: true,
       };
     } catch (error) {
-      console.error("Account deletion error:", error);
+      console.error("Account deletion backend error:", {
+        code: error?.code,
+        message: error?.message,
+        stack: error?.stack,
+      });
+
+      if (error instanceof HttpsError) {
+        throw error;
+      }
 
       throw new HttpsError(
         "internal",
