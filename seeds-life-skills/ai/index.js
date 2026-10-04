@@ -199,8 +199,11 @@ exports.deleteAccountData = onCall(
     }
 
     const db = getFirestore();
+    let stage = "starting deletion";
 
     try {
+      stage = "deleting generated image files";
+
       // Delete generated image files first. New Firebase projects commonly use
       // <project-id>.firebasestorage.app, while older projects use appspot.com.
       // A missing/unused bucket should not prevent deletion of the account.
@@ -243,12 +246,16 @@ exports.deleteAccountData = onCall(
         );
       }
 
+      stage = "deleting Firestore profile and user data";
+
       // Remove account documents and nested subcollections.
       await Promise.all([
         db.recursiveDelete(db.doc(`adultProfiles/${uid}`)),
         db.recursiveDelete(db.doc(`studentProfiles/${uid}`)),
         db.recursiveDelete(db.doc(`users/${uid}`)),
       ]);
+
+      stage = "deleting assistant usage records";
 
       // parentAssistant stores daily usage in assistantUsage/{uid}_YYYY-MM-DD.
       const usageSnapshot = await db
@@ -266,6 +273,8 @@ exports.deleteAccountData = onCall(
 
         await writer.close();
       }
+
+      stage = "deleting Firebase Authentication account";
 
       // Delete the Firebase Authentication account last.
       await getAuth().deleteUser(uid);
@@ -286,7 +295,7 @@ exports.deleteAccountData = onCall(
 
       throw new HttpsError(
         "internal",
-        "Unable to completely delete the account."
+        `Account deletion failed while ${stage}: ${error?.message || "unknown error"}`
       );
     }
   }
