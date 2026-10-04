@@ -121,7 +121,7 @@ export default function DeleteAccountScreen() {
 
       router.replace('/login');
     } catch (error) {
-      console.error('Account deletion error:', error);
+      // Expected deletion failures are surfaced in the validation banner.
       setShowFinalConfirm(false);
 
       if (
@@ -188,7 +188,7 @@ export default function DeleteAccountScreen() {
         <ValidationBanner message={validationError} />
       </View>
 
-      {!usesPasswordProvider && (
+      {!usesPassword && (
         <View style={styles.providerNotice}>
           <Ionicons name="information-circle-outline" size={20} color="#7F2323" />
           <Text style={styles.providerNoticeText}>
