@@ -132,10 +132,20 @@ export default function DeleteAccountScreen() {
         setValidationError(
           'Firebase rejected the password for this account. Re-enter the same password you use to sign in, or reset your password from Adult Profile and try again.'
         );
-      } else if (
-        error?.code === 'functions/failed-precondition' ||
-        error?.code === 'auth/requires-recent-login'
-      ) {
+      } else if (error?.code === 'functions/failed-precondition') {
+        const stage = error?.details?.stage;
+        const backendMessage = error?.details?.backendMessage;
+
+        if (stage || backendMessage) {
+          setValidationError(
+            `Deletion failed${stage ? ` while ${stage}` : ''}${backendMessage ? `: ${backendMessage}` : '.'}`
+          );
+        } else {
+          setValidationError(
+            error?.message || 'The account deletion service could not complete the request.'
+          );
+        }
+      } else if (error?.code === 'auth/requires-recent-login') {
         setValidationError(
           'For security, please sign out, sign back in, and try deleting your account again.'
         );
