@@ -4,7 +4,6 @@ import {
   Alert,
   Image,
   Linking,
-  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -76,14 +75,8 @@ export default function VisualDetail() {
         ...snapshot.data(),
       });
     } catch (err) {
-      console.error(
-        'Error loading visual:',
-        err
-      );
-
-      setError(
-        'Could not load this visual.'
-      );
+      console.error('Error loading visual:', err);
+      setError('Could not load this visual.');
     } finally {
       setLoading(false);
     }
@@ -94,44 +87,17 @@ export default function VisualDetail() {
 
     try {
       setDownloading(true);
+      await Linking.openURL(visual.posterUrl);
 
-      const safeName = String(visual.skill || 'saved-visual')
-        .trim()
-        .replace(/[^a-zA-Z0-9_-]+/g, '-')
-        .replace(/^-+|-+$/g, '')
-        .toLowerCase();
-
-      if (Platform.OS === 'web') {
-        const response = await fetch(visual.posterUrl);
-
-        if (!response.ok) {
-          throw new Error('Could not download image.');
-        }
-
-        const blob = await response.blob();
-        const objectUrl = URL.createObjectURL(blob);
-        const link = document.createElement('a');
-
-        link.href = objectUrl;
-        link.download = `${safeName || 'saved-visual'}.png`;
-        document.body.appendChild(link);
-        link.click();
-        link.remove();
-
-        URL.revokeObjectURL(objectUrl);
-      } else {
-        await Linking.openURL(visual.posterUrl);
-
-        Alert.alert(
-          'Save Visual',
-          'The visual has been opened. Use your device’s save or share option to keep a copy.'
-        );
-      }
+      Alert.alert(
+        'Save Visual',
+        'The visual has been opened. Use your device or browser save option to keep a copy.'
+      );
     } catch (err) {
       console.error('Visual download failed:', err);
 
       Alert.alert(
-        'Could not download visual',
+        'Could not open visual',
         'Please try again.'
       );
     } finally {
@@ -142,14 +108,8 @@ export default function VisualDetail() {
   if (loading) {
     return (
       <View style={s.center}>
-        <ActivityIndicator
-          size="large"
-          color="#7559E8"
-        />
-
-        <Text style={s.loadingText}>
-          Loading visual...
-        </Text>
+        <ActivityIndicator size="large" color="#7559E8" />
+        <Text style={s.loadingText}>Loading visual...</Text>
       </View>
     );
   }
@@ -159,26 +119,14 @@ export default function VisualDetail() {
       <View style={s.page}>
         <View style={s.header}>
           <Pressable onPress={() => router.back()}>
-            <Ionicons
-              name="chevron-back"
-              size={28}
-            />
+            <Ionicons name="chevron-back" size={28} />
           </Pressable>
-
-          <Text style={s.title}>
-            Saved Visual
-          </Text>
-
+          <Text style={s.title}>Saved Visual</Text>
           <View style={{ width: 28 }} />
         </View>
 
         <View style={s.center}>
-          <Ionicons
-            name="image-outline"
-            size={54}
-            color="#A0AEC0"
-          />
-
+          <Ionicons name="image-outline" size={54} color="#A0AEC0" />
           <Text style={s.errorText}>
             {error || 'Could not load this visual.'}
           </Text>
@@ -191,40 +139,25 @@ export default function VisualDetail() {
     <View style={s.page}>
       <View style={s.header}>
         <Pressable onPress={() => router.back()}>
-          <Ionicons
-            name="chevron-back"
-            size={28}
-          />
+          <Ionicons name="chevron-back" size={28} />
         </Pressable>
 
-        <Text
-          style={s.title}
-          numberOfLines={1}
-        >
+        <Text style={s.title} numberOfLines={1}>
           {visual.skill || 'Saved Visual'}
         </Text>
 
         <View style={{ width: 28 }} />
       </View>
 
-      <ScrollView
-        contentContainerStyle={s.content}
-      >
+      <ScrollView contentContainerStyle={s.content}>
         <View style={s.posterCard}>
           <Image
             source={{ uri: visual.posterUrl }}
             style={s.poster}
             resizeMode="contain"
-            onLoad={() => {
-              console.log(
-                'Saved visual loaded successfully'
-              );
-            }}
+            onLoad={() => console.log('Saved visual loaded successfully')}
             onError={(event) => {
-              console.error(
-                'Saved visual image error:',
-                event.nativeEvent.error
-              );
+              console.error('Saved visual image error:', event.nativeEvent.error);
             }}
           />
 
@@ -240,15 +173,11 @@ export default function VisualDetail() {
             {downloading ? (
               <ActivityIndicator color="#FFF" />
             ) : (
-              <Ionicons
-                name="download-outline"
-                size={21}
-                color="#FFF"
-              />
+              <Ionicons name="download-outline" size={21} color="#FFF" />
             )}
 
             <Text style={s.downloadButtonText}>
-              {downloading ? 'Downloading...' : 'Download Visual'}
+              {downloading ? 'Opening...' : 'Download Visual'}
             </Text>
           </Pressable>
         </View>
@@ -258,11 +187,7 @@ export default function VisualDetail() {
 }
 
 const s = StyleSheet.create({
-  page: {
-    flex: 1,
-    backgroundColor: '#F2F9FF',
-  },
-
+  page: { flex: 1, backgroundColor: '#F2F9FF' },
   center: {
     flex: 1,
     justifyContent: 'center',
@@ -270,18 +195,8 @@ const s = StyleSheet.create({
     backgroundColor: '#F2F9FF',
     padding: 30,
   },
-
-  loadingText: {
-    marginTop: 12,
-    color: '#718096',
-  },
-
-  errorText: {
-    marginTop: 14,
-    color: '#718096',
-    textAlign: 'center',
-  },
-
+  loadingText: { marginTop: 12, color: '#718096' },
+  errorText: { marginTop: 14, color: '#718096', textAlign: 'center' },
   header: {
     paddingTop: 56,
     paddingHorizontal: 20,
@@ -291,7 +206,6 @@ const s = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
   },
-
   title: {
     flex: 1,
     textAlign: 'center',
@@ -299,25 +213,14 @@ const s = StyleSheet.create({
     fontWeight: '800',
     marginHorizontal: 10,
   },
-
-  content: {
-    padding: 18,
-    paddingBottom: 40,
-  },
-
-  posterCard: {
-    backgroundColor: '#FFF',
-    borderRadius: 20,
-    padding: 12,
-  },
-
+  content: { padding: 18, paddingBottom: 40 },
+  posterCard: { backgroundColor: '#FFF', borderRadius: 20, padding: 12 },
   poster: {
     width: '100%',
     aspectRatio: 2 / 3,
     backgroundColor: '#FFF',
     borderRadius: 14,
   },
-
   downloadButton: {
     marginTop: 16,
     backgroundColor: '#258DEB',
@@ -329,18 +232,7 @@ const s = StyleSheet.create({
     alignItems: 'center',
     gap: 8,
   },
-
-  downloadButtonPressed: {
-    opacity: 0.85,
-  },
-
-  downloadButtonDisabled: {
-    opacity: 0.6,
-  },
-
-  downloadButtonText: {
-    color: '#FFF',
-    fontSize: 16,
-    fontWeight: '800',
-  },
+  downloadButtonPressed: { opacity: 0.85 },
+  downloadButtonDisabled: { opacity: 0.6 },
+  downloadButtonText: { color: '#FFF', fontSize: 16, fontWeight: '800' },
 });
