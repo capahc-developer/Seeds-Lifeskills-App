@@ -139,9 +139,13 @@ export default function DeleteAccountScreen() {
         setValidationError(
           'For security, please sign out, sign back in, and try deleting your account again.'
         );
+      } else if (error?.code === 'functions/internal') {
+        setValidationError(
+          error?.message || 'The account deletion service returned an internal error.'
+        );
       } else {
         setValidationError(
-          `Account deletion failed${error?.code ? ` (${error.code})` : ''}. Please try again.`
+          `Account deletion failed${error?.code ? ` (${error.code})` : ''}. ${error?.message || 'Please try again.'}`
         );
       }
     } finally {
