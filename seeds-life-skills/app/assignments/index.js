@@ -12,6 +12,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import ScreenContainer from '../../components/ScreenContainer';
+import ValidationBanner from '../../components/ValidationBanner';
 import { collection, addDoc, getDocs, query, orderBy, serverTimestamp } from 'firebase/firestore';
 import { practiceLogsForCurrentUser } from '../../lib/userData';
 import { db } from '../../lib/firebase';
@@ -49,6 +50,8 @@ export default function PracticeLogScreen() {
   const [logs, setLogs] = useState([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [validationError, setValidationError] = useState('');
+  const [fieldErrors, setFieldErrors] = useState({});
 
   const today = new Date().toLocaleDateString('en-US', {
     month: 'short',
@@ -84,19 +87,31 @@ export default function PracticeLogScreen() {
     loadData();
   }, []);
 
-  const saveLog = async () => {
-    if (!selectedSkill) {
-      Alert.alert('Select a skill', 'Please select the skill that was practiced.');
-      return;
-    }
+  const clearFieldError = (key) => {
+    setFieldErrors((current) => ({ ...current, [key]: false }));
+    setValidationError('');
+  };
 
-    if (!whatWentWell.trim() && !whatWasDifficult.trim() && !adjustment.trim()) {
-      Alert.alert(
-        'Add a practice note',
-        'Please record what went well, what was difficult, or an adjustment for next time.'
+  const saveLog = async () => {
+    const errors = {};
+    const notesComplete =
+      whatWentWell.trim() ||
+      whatWasDifficult.trim() ||
+      adjustment.trim();
+
+    if (!selectedSkill) errors.skill = true;
+    if (!notesComplete) errors.notes = true;
+
+    if (Object.keys(errors).length > 0) {
+      setFieldErrors(errors);
+      setValidationError(
+        'Practice record is incomplete. Select a skill and add at least one practice note before saving.'
       );
       return;
     }
+
+    setValidationError('');
+    setFieldErrors({});
 
     try {
       setSaving(true);
@@ -130,7 +145,7 @@ export default function PracticeLogScreen() {
       Alert.alert('Saved', 'Practice record saved successfully.');
     } catch (error) {
       console.error('Error saving practice log:', error);
-      Alert.alert('Error', 'Could not save the practice record.');
+      setValidationError('The practice record could not be saved. Please check your connection and try again.');
     } finally {
       setSaving(false);
     }
@@ -159,23 +174,34 @@ export default function PracticeLogScreen() {
         <View style={styles.formCard}>
           <Text style={styles.sectionTitle}>Add a Practice Record</Text>
 
+          <ValidationBanner message={validationError} />
+
           <Text style={styles.label}>Date</Text>
           <View style={styles.inputBox}>
             <Text style={styles.inputText}>{today}</Text>
             <Ionicons name="calendar-outline" size={22} color="#69778A" />
           </View>
 
-          <Text style={styles.label}>Skill</Text>
-          <Pressable style={styles.inputBox} onPress={() => setShowSkills(!showSkills)}>
+          <Text style={styles.label}>Skill <Text style={styles.required}>*</Text></Text>
+          <Pressable
+            style={[styles.inputBox, fieldErrors.skill && styles.fieldError]}
+            onPress={() => {
+              clearFieldError('skill');
+              setShowSkills(!showSkills);
+            }}
+          >
             <Text style={[styles.inputText, !selectedSkill && styles.placeholder]}>
               {selectedSkill?.title || 'Select a skill'}
             </Text>
             <Ionicons
               name={showSkills ? 'chevron-up' : 'chevron-down'}
               size={22}
-              color="#69778A"
+              color={fieldErrors.skill ? '#B42318' : '#69778A'}
             />
           </Pressable>
+          {fieldErrors.skill && (
+            <Text style={styles.fieldErrorText}>Please select the skill that was practiced.</Text>
+          )}
 
           {showSkills && (
             <View style={styles.dropdown}>
@@ -186,6 +212,7 @@ export default function PracticeLogScreen() {
                   onPress={() => {
                     setSelectedSkill(skill);
                     setShowSkills(false);
+                    clearFieldError('skill');
                   }}
                 >
                   <Text style={styles.dropdownText}>{skill.title}</Text>
@@ -248,26 +275,48 @@ export default function PracticeLogScreen() {
             })}
           </View>
 
+          <Text style={styles.noteRequirement}>
+            Add at least one note below. <Text style={styles.required}>*</Text>
+          </Text>
+
           <RecordField
             label="What went well?"
             placeholder="What worked? What was completed successfully?"
             value={whatWentWell}
-            onChangeText={setWhatWentWell}
+            onChangeText={(value) => {
+              setWhatWentWell(value);
+              if (value.trim()) clearFieldError('notes');
+            }}
+            hasError={fieldErrors.notes}
           />
 
           <RecordField
             label="What was difficult?"
             placeholder="What was hard? What got in the way?"
             value={whatWasDifficult}
-            onChangeText={setWhatWasDifficult}
+            onChangeText={(value) => {
+              setWhatWasDifficult(value);
+              if (value.trim()) clearFieldError('notes');
+            }}
+            hasError={fieldErrors.notes}
           />
 
           <RecordField
             label="Adjustment for next time"
             placeholder="What could help next time?"
             value={adjustment}
-            onChangeText={setAdjustment}
+            onChangeText={(value) => {
+              setAdjustment(value);
+              if (value.trim()) clearFieldError('notes');
+            }}
+            hasError={fieldErrors.notes}
           />
+
+          {fieldErrors.notes && (
+            <Text style={styles.fieldErrorText}>
+              Add something that went well, something difficult, or an adjustment for next time.
+            </Text>
+          )}
 
           <Pressable
             style={[styles.saveButton, saving && styles.saveButtonDisabled]}
@@ -305,13 +354,8 @@ export default function PracticeLogScreen() {
               <View style={styles.logDetails}>
                 <Text style={styles.logSkill}>{log.skill || log.practiceItemTitle || 'Practice'}</Text>
 
-                {!!log.practiceFocus && (
-                  <Text style={styles.logFocus}>{log.practiceFocus}</Text>
-                )}
-
-                {!!log.practiceActivity && (
-                  <Text style={styles.logActivity}>{log.practiceActivity}</Text>
-                )}
+                {!!log.practiceFocus && <Text style={styles.logFocus}>{log.practiceFocus}</Text>}
+                {!!log.practiceActivity && <Text style={styles.logActivity}>{log.practiceActivity}</Text>}
 
                 {!!log.rating && (
                   <Text style={styles.logRating}>
@@ -340,12 +384,12 @@ export default function PracticeLogScreen() {
   );
 }
 
-function RecordField({ label, placeholder, value, onChangeText }) {
+function RecordField({ label, placeholder, value, onChangeText, hasError }) {
   return (
     <>
       <Text style={styles.label}>{label}</Text>
       <TextInput
-        style={styles.commentBox}
+        style={[styles.commentBox, hasError && styles.fieldError]}
         value={value}
         onChangeText={onChangeText}
         placeholder={placeholder}
@@ -370,150 +414,49 @@ function LogNote({ label, value }) {
 const styles = StyleSheet.create({
   page: { flex: 1, backgroundColor: '#EEF8FF' },
   content: { paddingHorizontal: 16, paddingBottom: 50 },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginTop: 14,
-  },
+  header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 14 },
   backButton: { flexDirection: 'row', alignItems: 'center', width: 90 },
   backText: { fontSize: 17, color: '#168CE8', fontWeight: '600' },
   headerTitle: { fontSize: 24, fontWeight: '800', color: '#171B34' },
   headerSpacer: { width: 90 },
-  headerSubtitle: {
-    textAlign: 'center',
-    fontSize: 15,
-    lineHeight: 21,
-    color: '#7A8495',
-    marginTop: 7,
-    marginBottom: 18,
-  },
+  headerSubtitle: { textAlign: 'center', fontSize: 15, lineHeight: 21, color: '#7A8495', marginTop: 7, marginBottom: 18 },
   formCard: { backgroundColor: '#FFFFFF', borderRadius: 24, padding: 18 },
   sectionTitle: { fontSize: 23, fontWeight: '800', color: '#171B34', marginBottom: 18 },
-  label: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#171B34',
-    marginBottom: 8,
-    marginTop: 14,
-  },
-  inputBox: {
-    minHeight: 54,
-    borderRadius: 15,
-    backgroundColor: '#F3F7FC',
-    paddingHorizontal: 16,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  shortInput: {
-    minHeight: 54,
-    borderRadius: 15,
-    backgroundColor: '#F3F7FC',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    fontSize: 16,
-    color: '#39465A',
-  },
+  label: { fontSize: 16, fontWeight: '600', color: '#171B34', marginBottom: 8, marginTop: 14 },
+  required: { color: '#B42318' },
+  noteRequirement: { marginTop: 18, marginBottom: 2, fontSize: 13, color: '#69778A', fontWeight: '600' },
+  inputBox: { minHeight: 54, borderRadius: 15, backgroundColor: '#F3F7FC', paddingHorizontal: 16, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', borderWidth: 1.5, borderColor: 'transparent' },
+  shortInput: { minHeight: 54, borderRadius: 15, backgroundColor: '#F3F7FC', paddingHorizontal: 16, paddingVertical: 12, fontSize: 16, color: '#39465A' },
   inputText: { fontSize: 16, color: '#39465A', flex: 1 },
   placeholder: { color: '#8A95A5' },
-  dropdown: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 14,
-    marginTop: 5,
-    borderWidth: 1,
-    borderColor: '#E1E7EE',
-    overflow: 'hidden',
-  },
-  dropdownItem: {
-    paddingVertical: 14,
-    paddingHorizontal: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: '#EEF1F4',
-  },
+  fieldError: { borderColor: '#D92D20', backgroundColor: '#FFF8F7' },
+  fieldErrorText: { marginTop: 6, color: '#B42318', fontSize: 13, lineHeight: 18, fontWeight: '600' },
+  dropdown: { backgroundColor: '#FFFFFF', borderRadius: 14, marginTop: 5, borderWidth: 1, borderColor: '#E1E7EE', overflow: 'hidden' },
+  dropdownItem: { paddingVertical: 14, paddingHorizontal: 16, borderBottomWidth: 1, borderBottomColor: '#EEF1F4' },
   dropdownText: { fontSize: 16, color: '#171B34' },
   ratingRow: { flexDirection: 'row', justifyContent: 'space-between', gap: 5 },
-  ratingButton: {
-    flex: 1,
-    minHeight: 78,
-    backgroundColor: '#F3F7FC',
-    borderRadius: 15,
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingHorizontal: 3,
-    borderWidth: 2,
-    borderColor: 'transparent',
-  },
+  ratingButton: { flex: 1, minHeight: 78, backgroundColor: '#F3F7FC', borderRadius: 15, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 3, borderWidth: 2, borderColor: 'transparent' },
   ratingSelected: { borderColor: '#168CE8', backgroundColor: '#EAF5FF' },
   emoji: { fontSize: 25 },
   ratingText: { fontSize: 11, color: '#39465A', marginTop: 5, textAlign: 'center' },
-  commentBox: {
-    minHeight: 92,
-    backgroundColor: '#F3F7FC',
-    borderRadius: 15,
-    padding: 14,
-    fontSize: 15,
-    lineHeight: 21,
-    color: '#171B34',
-  },
-  saveButton: {
-    backgroundColor: '#168CE8',
-    minHeight: 55,
-    borderRadius: 28,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginTop: 24,
-  },
+  commentBox: { minHeight: 92, backgroundColor: '#F3F7FC', borderRadius: 15, padding: 14, fontSize: 15, lineHeight: 21, color: '#171B34', borderWidth: 1.5, borderColor: 'transparent' },
+  saveButton: { backgroundColor: '#168CE8', minHeight: 55, borderRadius: 28, alignItems: 'center', justifyContent: 'center', marginTop: 24 },
   saveButtonDisabled: { opacity: 0.7 },
   saveButtonText: { color: '#FFFFFF', fontSize: 18, fontWeight: '700' },
-  recentTitle: {
-    fontSize: 23,
-    fontWeight: '800',
-    color: '#171B34',
-    marginTop: 28,
-    marginBottom: 12,
-  },
-  emptyCard: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 20,
-    padding: 28,
-    alignItems: 'center',
-  },
+  recentTitle: { fontSize: 23, fontWeight: '800', color: '#171B34', marginTop: 28, marginBottom: 12 },
+  emptyCard: { backgroundColor: '#FFFFFF', borderRadius: 20, padding: 28, alignItems: 'center' },
   emptyTitle: { fontSize: 17, fontWeight: '700', color: '#39465A', marginTop: 10 },
   emptyText: { fontSize: 14, color: '#7A8495', marginTop: 8, textAlign: 'center' },
-  logCard: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 20,
-    padding: 16,
-    marginBottom: 12,
-    flexDirection: 'row',
-  },
-  logDate: {
-    width: 95,
-    borderRightWidth: 1,
-    borderRightColor: '#DCE3EA',
-    justifyContent: 'flex-start',
-    paddingTop: 2,
-  },
+  logCard: { backgroundColor: '#FFFFFF', borderRadius: 20, padding: 16, marginBottom: 12, flexDirection: 'row' },
+  logDate: { width: 95, borderRightWidth: 1, borderRightColor: '#DCE3EA', justifyContent: 'flex-start', paddingTop: 2 },
   logDateText: { fontSize: 14, fontWeight: '700', color: '#39465A' },
   logDetails: { flex: 1, paddingLeft: 16 },
   logSkill: { fontSize: 18, fontWeight: '800', color: '#171B34' },
-  logFocus: {
-    fontSize: 12,
-    color: '#438A6A',
-    fontWeight: '800',
-    marginTop: 4,
-  },
+  logFocus: { fontSize: 12, color: '#438A6A', fontWeight: '800', marginTop: 4 },
   logActivity: { fontSize: 13, color: '#526173', marginTop: 3, fontStyle: 'italic' },
   logRating: { fontSize: 15, color: '#2B9A52', fontWeight: '600', marginTop: 5 },
   logNote: { marginTop: 8 },
-  logNoteLabel: {
-    fontSize: 11,
-    fontWeight: '800',
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
-    color: '#718096',
-  },
+  logNoteLabel: { fontSize: 11, fontWeight: '800', textTransform: 'uppercase', letterSpacing: 0.5, color: '#718096' },
   logNoteText: { fontSize: 14, lineHeight: 19, color: '#39465A', marginTop: 2 },
   legacyText: { fontSize: 14, color: '#69778A', marginTop: 7, lineHeight: 19 },
 });
