@@ -18,6 +18,7 @@ import {
 } from 'firebase/auth';
 import { deleteDoc, doc } from 'firebase/firestore';
 
+import ValidationBanner from '../components/ValidationBanner';
 import { auth, db } from '../lib/firebase';
 
 export default function DeleteAccountScreen() {
@@ -25,21 +26,43 @@ export default function DeleteAccountScreen() {
   const [password, setPassword] = useState('');
   const [confirmation, setConfirmation] = useState('');
   const [deleting, setDeleting] = useState(false);
+  const [validationError, setValidationError] = useState('');
+  const [passwordError, setPasswordError] = useState(false);
+  const [confirmationError, setConfirmationError] = useState(false);
 
-  const canDelete =
-    password.length > 0 &&
-    confirmation.trim().toUpperCase() === 'DELETE';
+  const validate = () => {
+    const missingPassword = !password.trim();
+    const invalidConfirmation = confirmation.trim().toUpperCase() !== 'DELETE';
+
+    setPasswordError(missingPassword);
+    setConfirmationError(invalidConfirmation);
+
+    if (missingPassword && invalidConfirmation) {
+      setValidationError('Enter your current password and type DELETE to confirm account deletion.');
+      return false;
+    }
+
+    if (missingPassword) {
+      setValidationError('Enter your current password before deleting your account.');
+      return false;
+    }
+
+    if (invalidConfirmation) {
+      setValidationError('Type DELETE exactly in the confirmation field.');
+      return false;
+    }
+
+    setValidationError('');
+    return true;
+  };
 
   const deleteAccount = async () => {
     if (!user?.email) {
-      Alert.alert(
-        'Unable to delete account',
-        'No email address is associated with this account.'
-      );
+      setValidationError('No email address is associated with this account, so deletion cannot continue.');
       return;
     }
 
-    if (!canDelete || deleting) return;
+    if (!validate() || deleting) return;
 
     try {
       setDeleting(true);
@@ -55,7 +78,6 @@ export default function DeleteAccountScreen() {
       ]);
 
       await deleteUser(user);
-
       router.replace('/login');
     } catch (error) {
       console.error('Account deletion error:', error);
@@ -64,15 +86,12 @@ export default function DeleteAccountScreen() {
         error?.code === 'auth/invalid-credential' ||
         error?.code === 'auth/wrong-password'
       ) {
-        Alert.alert('Incorrect password', 'Please enter your current password.');
+        setPasswordError(true);
+        setValidationError('The password you entered is incorrect. Please try again.');
       } else if (error?.code === 'auth/requires-recent-login') {
-        Alert.alert(
-          'Please sign in again',
-          'For security, sign out and sign in again before deleting your account.'
-        );
+        setValidationError('For security, sign out and sign in again before deleting your account.');
       } else {
-        Alert.alert(
-          'Could not delete account',
+        setValidationError(
           'Your account was not fully deleted. Please try again before closing the app.'
         );
       }
@@ -82,6 +101,8 @@ export default function DeleteAccountScreen() {
   };
 
   const confirmDelete = () => {
+    if (!validate()) return;
+
     Alert.alert(
       'Permanently delete account?',
       'This cannot be undone. Your adult profile, student profile, and login account will be deleted.',
@@ -126,37 +147,55 @@ export default function DeleteAccountScreen() {
         student profile stored under your account. This action cannot be undone.
       </Text>
 
+      <View style={styles.bannerWrap}>
+        <ValidationBanner message={validationError} />
+      </View>
+
       <View style={styles.card}>
-        <Text style={styles.label}>Current password</Text>
+        <Text style={styles.label}>Current password <Text style={styles.required}>*</Text></Text>
         <TextInput
           value={password}
-          onChangeText={setPassword}
+          onChangeText={(value) => {
+            setPassword(value);
+            setPasswordError(false);
+            setValidationError('');
+          }}
           placeholder="Enter your password"
           secureTextEntry
           autoCapitalize="none"
-          style={styles.input}
+          style={[styles.input, passwordError && styles.inputError]}
         />
+        {passwordError && (
+          <Text style={styles.fieldErrorText}>Enter the correct current password.</Text>
+        )}
 
-        <Text style={styles.label}>Type DELETE to confirm</Text>
+        <Text style={styles.label}>Type DELETE to confirm <Text style={styles.required}>*</Text></Text>
         <TextInput
           value={confirmation}
-          onChangeText={setConfirmation}
+          onChangeText={(value) => {
+            setConfirmation(value);
+            setConfirmationError(false);
+            setValidationError('');
+          }}
           placeholder="DELETE"
           autoCapitalize="characters"
           autoCorrect={false}
-          style={styles.input}
+          style={[styles.input, confirmationError && styles.inputError]}
         />
+        {confirmationError && (
+          <Text style={styles.fieldErrorText}>Type DELETE exactly to continue.</Text>
+        )}
       </View>
 
       <Pressable
         accessibilityRole="button"
         accessibilityLabel="Permanently delete account"
         onPress={confirmDelete}
-        disabled={!canDelete || deleting}
+        disabled={deleting}
         style={({ pressed }) => [
           styles.deleteButton,
-          (!canDelete || deleting) && styles.disabled,
-          pressed && canDelete && styles.pressed,
+          deleting && styles.disabled,
+          pressed && styles.pressed,
         ]}
       >
         {deleting ? (
@@ -186,12 +225,7 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     backgroundColor: '#FFFFFF',
   },
-  headerButton: {
-    width: 42,
-    height: 42,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
+  headerButton: { width: 42, height: 42, alignItems: 'center', justifyContent: 'center' },
   headerTitle: { fontSize: 22, fontWeight: '800', color: '#17213A' },
   warningIcon: {
     width: 92,
@@ -219,9 +253,10 @@ const styles = StyleSheet.create({
     lineHeight: 22,
     color: '#6E5555',
   },
+  bannerWrap: { marginHorizontal: 20, marginTop: 22 },
   card: {
     margin: 20,
-    marginTop: 28,
+    marginTop: 6,
     padding: 18,
     borderRadius: 18,
     backgroundColor: '#FFFFFF',
@@ -232,15 +267,24 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: '#526170',
   },
+  required: { color: '#B42318' },
   input: {
-    marginBottom: 18,
-    borderWidth: 1,
+    marginBottom: 6,
+    borderWidth: 1.5,
     borderColor: '#D9E4EE',
     borderRadius: 12,
     paddingHorizontal: 14,
     paddingVertical: 14,
     fontSize: 16,
     backgroundColor: '#FFFFFF',
+  },
+  inputError: { borderColor: '#D92D20', backgroundColor: '#FFF8F7' },
+  fieldErrorText: {
+    color: '#B42318',
+    fontSize: 13,
+    fontWeight: '600',
+    marginBottom: 18,
+    lineHeight: 18,
   },
   deleteButton: {
     marginHorizontal: 20,
