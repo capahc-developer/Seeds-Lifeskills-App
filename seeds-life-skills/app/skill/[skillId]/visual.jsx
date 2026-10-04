@@ -3,6 +3,8 @@ import {
   ActivityIndicator,
   Alert,
   Image,
+  Linking,
+  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -20,8 +22,6 @@ import { functions } from '../../../lib/firebase';
 export default function Visual() {
   const { skillId } = useLocalSearchParams();
 
-  // useLocalSearchParams can technically return an array,
-  // so make sure we have a single string value.
   const resolvedSkillId = Array.isArray(skillId)
     ? skillId[0]
     : skillId;
@@ -30,6 +30,7 @@ export default function Visual() {
   const { profile } = useStudentProfile();
 
   const [loading, setLoading] = useState(false);
+  const [downloading, setDownloading] = useState(false);
   const [posterUrl, setPosterUrl] = useState(null);
 
   if (!skill) return null;
@@ -49,10 +50,7 @@ export default function Visual() {
       );
 
       const response = await generateVisualPlan({
-        // Send the skill ID so the backend can save
-        // which skill this generated visual belongs to.
         skillId: resolvedSkillId,
-
         skill: skill.title,
         strengths: profile.strengths || '',
         barriers: profile.barriers || '',
@@ -68,10 +66,6 @@ export default function Visual() {
       }
 
       console.log('Poster URL:', url);
-
-      // The backend will save the generated image.
-      // The frontend only needs the permanent URL
-      // returned by the Firebase Function.
       setPosterUrl(url);
     } catch (error) {
       console.error('Error generating visual:', error);
@@ -82,6 +76,56 @@ export default function Visual() {
       );
     } finally {
       setLoading(false);
+    }
+  }
+
+  async function downloadVisual() {
+    if (!posterUrl) return;
+
+    try {
+      setDownloading(true);
+
+      const safeName = String(skill.title || 'generated-visual')
+        .trim()
+        .replace(/[^a-zA-Z0-9_-]+/g, '-')
+        .replace(/^-+|-+$/g, '')
+        .toLowerCase();
+
+      if (Platform.OS === 'web') {
+        const response = await fetch(posterUrl);
+
+        if (!response.ok) {
+          throw new Error('Could not download image.');
+        }
+
+        const blob = await response.blob();
+        const objectUrl = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+
+        link.href = objectUrl;
+        link.download = `${safeName || 'generated-visual'}.png`;
+        document.body.appendChild(link);
+        link.click();
+        link.remove();
+
+        URL.revokeObjectURL(objectUrl);
+      } else {
+        await Linking.openURL(posterUrl);
+
+        Alert.alert(
+          'Save Visual',
+          'The visual has been opened. Use your device’s save or share option to keep a copy.'
+        );
+      }
+    } catch (error) {
+      console.error('Visual download failed:', error);
+
+      Alert.alert(
+        'Could not download visual',
+        'Please try again.'
+      );
+    } finally {
+      setDownloading(false);
     }
   }
 
@@ -203,6 +247,30 @@ export default function Visual() {
             }}
           />
 
+          <Pressable
+            style={({ pressed }) => [
+              s.downloadButton,
+              pressed && s.downloadButtonPressed,
+              downloading && s.disabledButton,
+            ]}
+            onPress={downloadVisual}
+            disabled={downloading}
+          >
+            {downloading ? (
+              <ActivityIndicator color="#FFF" />
+            ) : (
+              <Ionicons
+                name="download-outline"
+                size={20}
+                color="#FFF"
+              />
+            )}
+
+            <Text style={s.buttonText}>
+              {downloading ? 'Downloading...' : 'Download Visual'}
+            </Text>
+          </Pressable>
+
           <Text style={s.disclaimer}>
             AI-generated visuals may need to be adjusted for your
             child’s individual needs.
@@ -282,6 +350,22 @@ const s = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     gap: 9,
+  },
+
+  downloadButton: {
+    marginTop: 16,
+    backgroundColor: '#258DEB',
+    borderRadius: 14,
+    paddingVertical: 14,
+    paddingHorizontal: 18,
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    gap: 8,
+  },
+
+  downloadButtonPressed: {
+    opacity: 0.85,
   },
 
   disabledButton: {
