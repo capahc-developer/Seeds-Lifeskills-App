@@ -19,6 +19,7 @@ import {
   setDoc,
 } from 'firebase/firestore';
 
+import ValidationBanner from '../components/ValidationBanner';
 import { auth, db } from '../lib/firebase';
 
 export default function AccountEditScreen() {
@@ -30,6 +31,8 @@ export default function AccountEditScreen() {
 
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [validationError, setValidationError] = useState('');
+  const [nameError, setNameError] = useState(false);
 
   useEffect(() => {
     const loadProfile = async () => {
@@ -65,16 +68,20 @@ export default function AccountEditScreen() {
 
   const saveProfile = async () => {
     if (!user) {
-      Alert.alert('Not signed in', 'Please sign in again and retry.');
+      setValidationError('You are not signed in. Please sign in again and retry.');
       return;
     }
 
     const cleanName = fullName.trim();
 
     if (!cleanName) {
-      Alert.alert('Name required', 'Please enter your name.');
+      setNameError(true);
+      setValidationError('Please fill out the required Full Name field before saving.');
       return;
     }
+
+    setValidationError('');
+    setNameError(false);
 
     try {
       setSaving(true);
@@ -104,10 +111,7 @@ export default function AccountEditScreen() {
       ]);
     } catch (error) {
       console.error('Error saving adult profile:', error);
-      Alert.alert(
-        'Could not save profile',
-        'Please try again in a moment.'
-      );
+      setValidationError('Your account details could not be saved. Please try again in a moment.');
     } finally {
       setSaving(false);
     }
@@ -149,14 +153,24 @@ export default function AccountEditScreen() {
 
       <Text style={styles.sectionTitle}>Adult Information</Text>
 
-      <Text style={styles.label}>Full Name</Text>
+      <View style={styles.bannerWrap}>
+        <ValidationBanner message={validationError} />
+      </View>
+
+      <Text style={styles.label}>Full Name <Text style={styles.required}>*</Text></Text>
       <TextInput
-        style={styles.input}
+        style={[styles.input, nameError && styles.inputError]}
         value={fullName}
-        onChangeText={setFullName}
+        onChangeText={(value) => {
+          setFullName(value);
+          setNameError(false);
+          setValidationError('');
+        }}
         placeholder="Your full name"
         autoCapitalize="words"
       />
+
+      {nameError && <Text style={styles.fieldErrorText}>Full Name is required.</Text>}
 
       <Text style={styles.label}>Relationship to Student</Text>
       <TextInput
@@ -255,6 +269,10 @@ const styles = StyleSheet.create({
     fontWeight: '800',
     color: '#17213A',
   },
+  bannerWrap: { marginHorizontal: 20, marginBottom: 8 },
+  required: { color: '#B42318' },
+  inputError: { borderColor: '#D92D20', backgroundColor: '#FFF8F7' },
+  fieldErrorText: { marginHorizontal: 20, marginTop: -10, marginBottom: 14, color: '#B42318', fontSize: 13, fontWeight: '600' },
   label: {
     marginHorizontal: 20,
     marginBottom: 7,
