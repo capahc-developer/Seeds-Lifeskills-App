@@ -7,25 +7,23 @@ import { auth } from '../lib/firebase';
 
 const cards = [
   {
-    title: 'Parent Assistant',
-    subtitle: 'Ask a question or create a practice activity.',
-    icon: 'sparkles-outline',
-    tint: '#FFF3DE',
-    color: '#A9690B',
-    route: '/parent-assistant',
+    title: 'General Strategies',
+    subtitle:
+      'Browse practical teaching strategies you can use across everyday skills.',
+    icon: 'bulb-outline',
+    tint: '#E8F7F2',
+    color: '#248A6B',
+    route: '/general-strategies',
   },
-
   {
     title: 'Your Skills',
     subtitle:
-      'Practice skills selected for your child. Morning Routine is included as an example.',
+      'Practice built-in skills or create and customize your own.',
     icon: 'apps-outline',
     tint: '#EEE9FF',
     color: '#7C5CE7',
     route: '/all-skills',
   },
-
-  // NEW
   {
     title: 'My Visuals',
     subtitle:
@@ -34,16 +32,6 @@ const cards = [
     tint: '#F2EAFE',
     color: '#7559E8',
     route: '/my-visuals',
-  },
-
-  {
-    title: 'General Strategies',
-    subtitle:
-      'Browse practical teaching strategies you can use across everyday skills.',
-    icon: 'bulb-outline',
-    tint: '#E8F7F2',
-    color: '#248A6B',
-    route: '/general-strategies',
   },
   {
     title: 'Practice Log',
