@@ -4,10 +4,6 @@
   },
   "functions": [
     {
-      "codebase": "default",
-      "source": "functions"
-    },
-    {
       "source": "ai",
       "codebase": "ai",
       "disallowLegacyRuntimeConfig": true,
