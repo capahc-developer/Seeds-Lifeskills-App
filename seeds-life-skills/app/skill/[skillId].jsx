@@ -35,6 +35,7 @@ export default function Skill() {
         setLoading(true);
         setError(false);
 
+        // Load the master skill from Firebase
         const skillRef = doc(db, 'skills', String(skillId));
         const skillSnap = await getDoc(skillRef);
 
@@ -50,11 +51,15 @@ export default function Skill() {
 
         setSkill(loadedSkill);
 
+        // Start with the suggested/default steps stored
+        // in the master skill document.
         let nextSteps =
           Array.isArray(loadedSkill.steps) && loadedSkill.steps.length
             ? loadedSkill.steps
             : genericSteps;
 
+        // If the parent has customized this skill,
+        // use the customized steps instead.
         if (user) {
           const customization = await getDoc(
             doc(
@@ -84,7 +89,9 @@ export default function Skill() {
       }
     };
 
-    if (skillId) loadSkill();
+    if (skillId) {
+      loadSkill();
+    }
   }, [skillId, user]);
 
   if (loading) {
@@ -100,7 +107,11 @@ export default function Skill() {
     return (
       <View style={s.loadingContainer}>
         <Text style={s.errorTitle}>Skill not found</Text>
-        <Pressable style={s.backButton} onPress={() => router.back()}>
+
+        <Pressable
+          style={s.backButton}
+          onPress={() => router.back()}
+        >
           <Text style={s.backButtonText}>Go Back</Text>
         </Pressable>
       </View>
@@ -108,7 +119,11 @@ export default function Skill() {
   }
 
   return (
-    <ScrollView style={s.page} contentContainerStyle={s.content}>
+    <ScrollView
+      style={s.page}
+      contentContainerStyle={s.content}
+    >
+      {/* Header */}
       <View style={s.header}>
         <Pressable onPress={() => router.back()}>
           <Ionicons name="chevron-back" size={28} />
@@ -119,6 +134,7 @@ export default function Skill() {
         <View style={{ width: 28 }} />
       </View>
 
+      {/* Skill title */}
       <View style={s.hero}>
         <View style={s.heroIcon}>
           <Ionicons
@@ -129,20 +145,38 @@ export default function Skill() {
         </View>
 
         <Text style={s.title}>{skill.title}</Text>
-        <Text style={s.sub}>{skill.subtitle}</Text>
+
+        <Text style={s.sub}>
+          {skill.subtitle}
+        </Text>
       </View>
 
+      {/* About + Goals */}
       <View style={s.card}>
-        <Text style={s.cardTitle}>About This Skill</Text>
+        <Text style={s.cardTitle}>
+          About This Skill
+        </Text>
 
-        <Text style={s.body}>{skill.description}</Text>
+        <Text style={s.body}>
+          {skill.description}
+        </Text>
 
         {!!skill.goals?.length && (
           <>
-            <Text style={[s.cardTitle, { marginTop: 18 }]}>Common Goals</Text>
+            <Text
+              style={[
+                s.cardTitle,
+                { marginTop: 18 },
+              ]}
+            >
+              Common Goals
+            </Text>
 
             {skill.goals.map((goal, index) => (
-              <Text key={`${goal}-${index}`} style={s.goal}>
+              <Text
+                key={`${goal}-${index}`}
+                style={s.goal}
+              >
                 • {goal}
               </Text>
             ))}
@@ -150,12 +184,18 @@ export default function Skill() {
         )}
       </View>
 
+      {/* Steps */}
       <View style={s.card}>
         <View style={s.stepsHeading}>
           <View style={{ flex: 1 }}>
-            <Text style={s.cardTitle}>Steps</Text>
+            <Text style={s.cardTitle}>
+              Steps
+            </Text>
+
             <Text style={s.stepsHint}>
-              Start with this list, then adjust the wording or order for your child.
+              Use these suggested steps as a starting point.
+              Add, remove, reorder, or change them to fit
+              your child’s needs.
             </Text>
           </View>
 
@@ -164,39 +204,75 @@ export default function Skill() {
             onPress={() =>
               router.push({
                 pathname: '/skill-step-editor',
-                params: { skillId: skill.id },
+                params: {
+                  skillId: skill.id,
+                },
               })
             }
           >
-            <Ionicons name="create-outline" size={17} color="#258DEB" />
-            <Text style={s.editStepsText}>Adjust</Text>
+            <Ionicons
+              name="create-outline"
+              size={17}
+              color="#258DEB"
+            />
+
+            <Text style={s.editStepsText}>
+              Adjust
+            </Text>
           </Pressable>
         </View>
 
         {steps.map((step, index) => (
-          <View key={index} style={s.stepRow}>
+          <View
+            key={`${step}-${index}`}
+            style={s.stepRow}
+          >
             <View style={s.stepNumber}>
-              <Text style={s.stepNumberText}>{index + 1}</Text>
+              <Text style={s.stepNumberText}>
+                {index + 1}
+              </Text>
             </View>
-            <Text style={s.stepText}>{step}</Text>
+
+            <Text style={s.stepText}>
+              {step}
+            </Text>
           </View>
         ))}
       </View>
 
+      {/* Strategies */}
       <Pressable
         style={s.button}
-        onPress={() => router.push(`/skill/${skill.id}/strategies`)}
+        onPress={() =>
+          router.push(
+            `/skill/${skill.id}/strategies`
+          )
+        }
       >
-        <Text style={s.buttonText}>View Strategies</Text>
-        <Ionicons name="arrow-forward" size={20} color="#FFF" />
+        <Text style={s.buttonText}>
+          View Strategies
+        </Text>
+
+        <Ionicons
+          name="arrow-forward"
+          size={20}
+          color="#FFF"
+        />
       </Pressable>
     </ScrollView>
   );
 }
 
 const s = StyleSheet.create({
-  page: { flex: 1, backgroundColor: '#F2F9FF' },
-  content: { paddingBottom: 40 },
+  page: {
+    flex: 1,
+    backgroundColor: '#F2F9FF',
+  },
+
+  content: {
+    paddingBottom: 40,
+  },
+
   header: {
     paddingTop: 56,
     paddingHorizontal: 20,
@@ -206,8 +282,17 @@ const s = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
   },
-  headerTitle: { fontSize: 20, fontWeight: '800' },
-  hero: { alignItems: 'center', padding: 26 },
+
+  headerTitle: {
+    fontSize: 20,
+    fontWeight: '800',
+  },
+
+  hero: {
+    alignItems: 'center',
+    padding: 26,
+  },
+
   heroIcon: {
     width: 80,
     height: 80,
@@ -216,8 +301,19 @@ const s = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  title: { fontSize: 25, fontWeight: '800', marginTop: 12 },
-  sub: { color: '#718096', marginTop: 5, textAlign: 'center' },
+
+  title: {
+    fontSize: 25,
+    fontWeight: '800',
+    marginTop: 12,
+  },
+
+  sub: {
+    color: '#718096',
+    marginTop: 5,
+    textAlign: 'center',
+  },
+
   card: {
     backgroundColor: '#FFF',
     marginHorizontal: 16,
@@ -225,26 +321,39 @@ const s = StyleSheet.create({
     borderRadius: 20,
     padding: 18,
   },
-  cardTitle: { fontSize: 17, fontWeight: '800' },
+
+  cardTitle: {
+    fontSize: 17,
+    fontWeight: '800',
+  },
+
   body: {
     fontSize: 15,
     lineHeight: 22,
     color: '#5F6B7A',
     marginTop: 7,
   },
-  goal: { fontSize: 15, lineHeight: 26, color: '#45556B' },
+
+  goal: {
+    fontSize: 15,
+    lineHeight: 26,
+    color: '#45556B',
+  },
+
   stepsHeading: {
     flexDirection: 'row',
     gap: 12,
     alignItems: 'center',
     marginBottom: 12,
   },
+
   stepsHint: {
     marginTop: 4,
     fontSize: 12,
     lineHeight: 17,
     color: '#718096',
   },
+
   editStepsButton: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -254,7 +363,13 @@ const s = StyleSheet.create({
     borderRadius: 10,
     backgroundColor: '#EAF5FF',
   },
-  editStepsText: { color: '#258DEB', fontWeight: '800', fontSize: 13 },
+
+  editStepsText: {
+    color: '#258DEB',
+    fontWeight: '800',
+    fontSize: 13,
+  },
+
   stepRow: {
     flexDirection: 'row',
     alignItems: 'flex-start',
@@ -263,6 +378,7 @@ const s = StyleSheet.create({
     borderTopWidth: 1,
     borderTopColor: '#EEF2F6',
   },
+
   stepNumber: {
     width: 30,
     height: 30,
@@ -271,7 +387,12 @@ const s = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  stepNumberText: { color: '#438A6A', fontWeight: '800' },
+
+  stepNumberText: {
+    color: '#438A6A',
+    fontWeight: '800',
+  },
+
   stepText: {
     flex: 1,
     fontSize: 15,
@@ -279,6 +400,7 @@ const s = StyleSheet.create({
     color: '#34435A',
     paddingTop: 4,
   },
+
   button: {
     marginHorizontal: 16,
     marginTop: 2,
@@ -289,7 +411,13 @@ const s = StyleSheet.create({
     justifyContent: 'center',
     gap: 10,
   },
-  buttonText: { color: '#FFF', fontWeight: '800', fontSize: 17 },
+
+  buttonText: {
+    color: '#FFF',
+    fontWeight: '800',
+    fontSize: 17,
+  },
+
   loadingContainer: {
     flex: 1,
     justifyContent: 'center',
@@ -297,8 +425,19 @@ const s = StyleSheet.create({
     backgroundColor: '#F2F9FF',
     padding: 30,
   },
-  loadingText: { marginTop: 12, color: '#718096', fontSize: 15 },
-  errorTitle: { fontSize: 20, fontWeight: '800', color: '#17213A' },
+
+  loadingText: {
+    marginTop: 12,
+    color: '#718096',
+    fontSize: 15,
+  },
+
+  errorTitle: {
+    fontSize: 20,
+    fontWeight: '800',
+    color: '#17213A',
+  },
+
   backButton: {
     marginTop: 20,
     backgroundColor: '#258DEB',
@@ -306,5 +445,9 @@ const s = StyleSheet.create({
     paddingVertical: 12,
     borderRadius: 14,
   },
-  backButtonText: { color: '#FFF', fontWeight: '800' },
+
+  backButtonText: {
+    color: '#FFF',
+    fontWeight: '800',
+  },
 });

@@ -17,8 +17,14 @@ import {
 import { Ionicons } from "@expo/vector-icons";
 
 import { httpsCallable } from "firebase/functions";
+import { doc, getDoc } from "firebase/firestore";
 
-import { functions } from "../../../lib/firebase";
+import {
+  functions,
+  auth,
+  db,
+} from "../../../lib/firebase";
+
 import { findSkill } from "../../../data/skills";
 import { useStudentProfile } from "../../../context/StudentProfileContext";
 
@@ -27,7 +33,12 @@ export default function Visual() {
 
   const { skillId } = useLocalSearchParams();
 
-  const skill = findSkill(skillId);
+  const resolvedSkillId =
+    Array.isArray(skillId)
+      ? skillId[0]
+      : skillId;
+
+  const skill = findSkill(resolvedSkillId);
 
   const { profile } = useStudentProfile();
 
@@ -48,6 +59,128 @@ export default function Visual() {
 
 
   // --------------------------------
+  // Get parent-approved steps
+  // --------------------------------
+
+  const getStepsForVisual = async () => {
+
+    const user = auth.currentUser;
+
+    let steps = [];
+
+
+    // --------------------------------
+    // 1. First try parent's customized steps
+    // --------------------------------
+
+    if (user) {
+
+      try {
+
+        const customRef = doc(
+          db,
+          "users",
+          user.uid,
+          "skillCustomizations",
+          String(resolvedSkillId)
+        );
+
+        const customSnap =
+          await getDoc(customRef);
+
+
+        if (customSnap.exists()) {
+
+          const customData =
+            customSnap.data();
+
+          if (
+            Array.isArray(customData.steps) &&
+            customData.steps.length > 0
+          ) {
+
+            steps =
+              customData.steps;
+
+            console.log(
+              "Using customized steps:",
+              steps
+            );
+
+            return steps;
+
+          }
+
+        }
+
+      } catch (err) {
+
+        console.error(
+          "Error loading customized steps:",
+          err
+        );
+
+      }
+
+    }
+
+
+    // --------------------------------
+    // 2. Fall back to default skill steps
+    // --------------------------------
+
+    try {
+
+      const skillRef = doc(
+        db,
+        "skills",
+        String(resolvedSkillId)
+      );
+
+      const skillSnap =
+        await getDoc(skillRef);
+
+
+      if (skillSnap.exists()) {
+
+        const skillData =
+          skillSnap.data();
+
+        if (
+          Array.isArray(skillData.steps) &&
+          skillData.steps.length > 0
+        ) {
+
+          steps =
+            skillData.steps;
+
+          console.log(
+            "Using default skill steps:",
+            steps
+          );
+
+          return steps;
+
+        }
+
+      }
+
+    } catch (err) {
+
+      console.error(
+        "Error loading default skill steps:",
+        err
+      );
+
+    }
+
+
+    return [];
+
+  };
+
+
+  // --------------------------------
   // Generate AI Visual Poster
   // --------------------------------
 
@@ -57,6 +190,33 @@ export default function Visual() {
 
       setLoading(true);
       setError("");
+
+
+      // Get the exact steps the parent sees
+      // before generating the poster.
+
+      const steps =
+        await getStepsForVisual();
+
+
+      console.log(
+        "Steps being sent to AI:",
+        steps
+      );
+
+
+      // Do not generate a poster if
+      // we couldn't find any steps.
+
+      if (!steps.length) {
+
+        setError(
+          "No steps were found for this skill. Please add or adjust the steps first."
+        );
+
+        return;
+
+      }
 
 
       const generateVisualPlan =
@@ -69,7 +229,15 @@ export default function Visual() {
       const result =
         await generateVisualPlan({
 
-          skill: skill.title,
+          skillId:
+            String(resolvedSkillId),
+
+          skill:
+            skill.title,
+
+          // IMPORTANT:
+          // These are the parent-approved steps.
+          steps,
 
           strengths:
             profile.strengths ||
@@ -92,12 +260,16 @@ export default function Visual() {
       );
 
 
-      const url = result.data?.posterUrl;
+      const url =
+        result.data?.posterUrl;
+
 
       if (!url) {
+
         throw new Error(
           "The AI function did not return a poster URL."
         );
+
       }
 
 
@@ -116,6 +288,7 @@ export default function Visual() {
         "Error generating visual:",
         err
       );
+
 
       setError(
         "We couldn't generate the visual. Please try again."
@@ -320,9 +493,11 @@ export default function Visual() {
             style={s.poster}
             resizeMode="contain"
             onLoad={() => {
+
               console.log(
                 "Poster loaded successfully"
               );
+
             }}
             onError={(event) => {
 

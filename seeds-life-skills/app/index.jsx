@@ -16,7 +16,7 @@ const cards = [
     route: '/general-strategies',
   },
   {
-    title: 'Your Skills',
+    title: 'My Skills',
     subtitle:
       'Practice built-in skills or create and customize your own.',
     icon: 'apps-outline',
