@@ -1,266 +1,202 @@
 import {
+  ActivityIndicator,
+  Pressable,
   ScrollView,
   StyleSheet,
   Text,
   View,
-  Pressable,
-  ActivityIndicator,
 } from 'react-native';
-
-import {
-  router,
-  useLocalSearchParams,
-} from 'expo-router';
-
+import { router, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useEffect, useState } from 'react';
+import { doc, getDoc } from 'firebase/firestore';
 
-import {
-  doc,
-  getDoc,
-} from 'firebase/firestore';
+import { auth, db } from '../../lib/firebase';
 
-import { db } from '../../lib/firebase';
-
+const genericSteps = [
+  'Get ready and gather what you need.',
+  'Start the first part of the skill.',
+  'Continue through the task one step at a time.',
+  'Check that the task is complete.',
+];
 
 export default function Skill() {
-
   const { skillId } = useLocalSearchParams();
+  const user = auth.currentUser;
 
   const [skill, setSkill] = useState(null);
+  const [steps, setSteps] = useState(genericSteps);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
 
-
   useEffect(() => {
-
     const loadSkill = async () => {
-
       try {
-
         setLoading(true);
         setError(false);
 
-        const skillRef = doc(
-          db,
-          'skills',
-          String(skillId)
-        );
-
+        const skillRef = doc(db, 'skills', String(skillId));
         const skillSnap = await getDoc(skillRef);
 
-
-        if (skillSnap.exists()) {
-
-          setSkill({
-            id: skillSnap.id,
-            ...skillSnap.data(),
-          });
-
-        } else {
-
+        if (!skillSnap.exists()) {
           setError(true);
-
+          return;
         }
 
+        const loadedSkill = {
+          id: skillSnap.id,
+          ...skillSnap.data(),
+        };
+
+        setSkill(loadedSkill);
+
+        let nextSteps =
+          Array.isArray(loadedSkill.steps) && loadedSkill.steps.length
+            ? loadedSkill.steps
+            : genericSteps;
+
+        if (user) {
+          const customization = await getDoc(
+            doc(
+              db,
+              'users',
+              user.uid,
+              'skillCustomizations',
+              String(skillId)
+            )
+          );
+
+          if (
+            customization.exists() &&
+            Array.isArray(customization.data().steps) &&
+            customization.data().steps.length
+          ) {
+            nextSteps = customization.data().steps;
+          }
+        }
+
+        setSteps(nextSteps);
       } catch (err) {
-
-        console.error(
-          'Error loading skill from Firebase:',
-          err
-        );
-
+        console.error('Error loading skill from Firebase:', err);
         setError(true);
-
       } finally {
-
         setLoading(false);
-
       }
-
     };
 
-
-    if (skillId) {
-      loadSkill();
-    }
-
-  }, [skillId]);
-
+    if (skillId) loadSkill();
+  }, [skillId, user]);
 
   if (loading) {
-
     return (
-
       <View style={s.loadingContainer}>
-
         <ActivityIndicator size="large" />
-
-        <Text style={s.loadingText}>
-          Loading skill...
-        </Text>
-
+        <Text style={s.loadingText}>Loading skill...</Text>
       </View>
-
     );
-
   }
-
 
   if (error || !skill) {
-
     return (
-
       <View style={s.loadingContainer}>
-
-        <Text style={s.errorTitle}>
-          Skill not found
-        </Text>
-
-        <Pressable
-          style={s.backButton}
-          onPress={() => router.back()}
-        >
-
-          <Text style={s.backButtonText}>
-            Go Back
-          </Text>
-
+        <Text style={s.errorTitle}>Skill not found</Text>
+        <Pressable style={s.backButton} onPress={() => router.back()}>
+          <Text style={s.backButtonText}>Go Back</Text>
         </Pressable>
-
       </View>
-
     );
-
   }
 
-
   return (
-
-    <ScrollView style={s.page}>
-
+    <ScrollView style={s.page} contentContainerStyle={s.content}>
       <View style={s.header}>
-
-        <Pressable
-          onPress={() => router.back()}
-        >
-
-          <Ionicons
-            name="chevron-back"
-            size={28}
-          />
-
+        <Pressable onPress={() => router.back()}>
+          <Ionicons name="chevron-back" size={28} />
         </Pressable>
 
-
-        <Text style={s.headerTitle}>
-          {skill.title}
-        </Text>
-
+        <Text style={s.headerTitle}>{skill.title}</Text>
 
         <View style={{ width: 28 }} />
-
       </View>
 
-
       <View style={s.hero}>
-
         <View style={s.heroIcon}>
-
           <Ionicons
             name={skill.icon || 'school-outline'}
             size={40}
             color="#EAA31B"
           />
-
         </View>
 
-
-        <Text style={s.title}>
-          {skill.title}
-        </Text>
-
-
-        <Text style={s.sub}>
-          {skill.subtitle}
-        </Text>
-
+        <Text style={s.title}>{skill.title}</Text>
+        <Text style={s.sub}>{skill.subtitle}</Text>
       </View>
-
 
       <View style={s.card}>
+        <Text style={s.cardTitle}>About This Skill</Text>
 
-        <Text style={s.cardTitle}>
-          About This Skill
-        </Text>
+        <Text style={s.body}>{skill.description}</Text>
 
+        {!!skill.goals?.length && (
+          <>
+            <Text style={[s.cardTitle, { marginTop: 18 }]}>Common Goals</Text>
 
-        <Text style={s.body}>
-          {skill.description}
-        </Text>
-
-
-        <Text
-          style={[
-            s.cardTitle,
-            { marginTop: 18 },
-          ]}
-        >
-          Common Goals
-        </Text>
-
-
-        {(skill.goals || []).map(
-          (goal, index) => (
-
-            <Text
-              key={`${goal}-${index}`}
-              style={s.goal}
-            >
-              • {goal}
-            </Text>
-
-          )
+            {skill.goals.map((goal, index) => (
+              <Text key={`${goal}-${index}`} style={s.goal}>
+                • {goal}
+              </Text>
+            ))}
+          </>
         )}
-
       </View>
 
+      <View style={s.card}>
+        <View style={s.stepsHeading}>
+          <View style={{ flex: 1 }}>
+            <Text style={s.cardTitle}>Steps</Text>
+            <Text style={s.stepsHint}>
+              Start with this list, then adjust the wording or order for your child.
+            </Text>
+          </View>
+
+          <Pressable
+            style={s.editStepsButton}
+            onPress={() =>
+              router.push({
+                pathname: '/skill-step-editor',
+                params: { skillId: skill.id },
+              })
+            }
+          >
+            <Ionicons name="create-outline" size={17} color="#258DEB" />
+            <Text style={s.editStepsText}>Adjust</Text>
+          </Pressable>
+        </View>
+
+        {steps.map((step, index) => (
+          <View key={index} style={s.stepRow}>
+            <View style={s.stepNumber}>
+              <Text style={s.stepNumberText}>{index + 1}</Text>
+            </View>
+            <Text style={s.stepText}>{step}</Text>
+          </View>
+        ))}
+      </View>
 
       <Pressable
         style={s.button}
-        onPress={() =>
-          router.push(
-            `/skill/${skill.id}/strategies`
-          )
-        }
+        onPress={() => router.push(`/skill/${skill.id}/strategies`)}
       >
-
-        <Text style={s.buttonText}>
-          View Strategies
-        </Text>
-
-        <Ionicons
-          name="arrow-forward"
-          size={20}
-          color="#FFF"
-        />
-
+        <Text style={s.buttonText}>View Strategies</Text>
+        <Ionicons name="arrow-forward" size={20} color="#FFF" />
       </Pressable>
-
     </ScrollView>
-
   );
-
 }
 
-
 const s = StyleSheet.create({
-
-  page: {
-    flex: 1,
-    backgroundColor: '#F2F9FF',
-  },
-
+  page: { flex: 1, backgroundColor: '#F2F9FF' },
+  content: { paddingBottom: 40 },
   header: {
     paddingTop: 56,
     paddingHorizontal: 20,
@@ -270,17 +206,8 @@ const s = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
   },
-
-  headerTitle: {
-    fontSize: 20,
-    fontWeight: '800',
-  },
-
-  hero: {
-    alignItems: 'center',
-    padding: 26,
-  },
-
+  headerTitle: { fontSize: 20, fontWeight: '800' },
+  hero: { alignItems: 'center', padding: 26 },
   heroIcon: {
     width: 80,
     height: 80,
@@ -289,46 +216,72 @@ const s = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-
-  title: {
-    fontSize: 25,
-    fontWeight: '800',
-    marginTop: 12,
-  },
-
-  sub: {
-    color: '#718096',
-    marginTop: 5,
-    textAlign: 'center',
-  },
-
+  title: { fontSize: 25, fontWeight: '800', marginTop: 12 },
+  sub: { color: '#718096', marginTop: 5, textAlign: 'center' },
   card: {
     backgroundColor: '#FFF',
-    margin: 16,
+    marginHorizontal: 16,
+    marginBottom: 14,
     borderRadius: 20,
     padding: 18,
   },
-
-  cardTitle: {
-    fontSize: 17,
-    fontWeight: '800',
-  },
-
+  cardTitle: { fontSize: 17, fontWeight: '800' },
   body: {
     fontSize: 15,
     lineHeight: 22,
     color: '#5F6B7A',
     marginTop: 7,
   },
-
-  goal: {
-    fontSize: 15,
-    lineHeight: 26,
-    color: '#45556B',
+  goal: { fontSize: 15, lineHeight: 26, color: '#45556B' },
+  stepsHeading: {
+    flexDirection: 'row',
+    gap: 12,
+    alignItems: 'center',
+    marginBottom: 12,
   },
-
+  stepsHint: {
+    marginTop: 4,
+    fontSize: 12,
+    lineHeight: 17,
+    color: '#718096',
+  },
+  editStepsButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+    borderRadius: 10,
+    backgroundColor: '#EAF5FF',
+  },
+  editStepsText: { color: '#258DEB', fontWeight: '800', fontSize: 13 },
+  stepRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 12,
+    paddingVertical: 10,
+    borderTopWidth: 1,
+    borderTopColor: '#EEF2F6',
+  },
+  stepNumber: {
+    width: 30,
+    height: 30,
+    borderRadius: 15,
+    backgroundColor: '#E9F8F0',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  stepNumberText: { color: '#438A6A', fontWeight: '800' },
+  stepText: {
+    flex: 1,
+    fontSize: 15,
+    lineHeight: 21,
+    color: '#34435A',
+    paddingTop: 4,
+  },
   button: {
-    margin: 16,
+    marginHorizontal: 16,
+    marginTop: 2,
     backgroundColor: '#258DEB',
     padding: 17,
     borderRadius: 18,
@@ -336,13 +289,7 @@ const s = StyleSheet.create({
     justifyContent: 'center',
     gap: 10,
   },
-
-  buttonText: {
-    color: '#FFF',
-    fontWeight: '800',
-    fontSize: 17,
-  },
-
+  buttonText: { color: '#FFF', fontWeight: '800', fontSize: 17 },
   loadingContainer: {
     flex: 1,
     justifyContent: 'center',
@@ -350,19 +297,8 @@ const s = StyleSheet.create({
     backgroundColor: '#F2F9FF',
     padding: 30,
   },
-
-  loadingText: {
-    marginTop: 12,
-    color: '#718096',
-    fontSize: 15,
-  },
-
-  errorTitle: {
-    fontSize: 20,
-    fontWeight: '800',
-    color: '#17213A',
-  },
-
+  loadingText: { marginTop: 12, color: '#718096', fontSize: 15 },
+  errorTitle: { fontSize: 20, fontWeight: '800', color: '#17213A' },
   backButton: {
     marginTop: 20,
     backgroundColor: '#258DEB',
@@ -370,10 +306,5 @@ const s = StyleSheet.create({
     paddingVertical: 12,
     borderRadius: 14,
   },
-
-  backButtonText: {
-    color: '#FFF',
-    fontWeight: '800',
-  },
-
+  backButtonText: { color: '#FFF', fontWeight: '800' },
 });
