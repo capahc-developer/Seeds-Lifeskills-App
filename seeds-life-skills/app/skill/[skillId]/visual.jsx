@@ -160,7 +160,10 @@ export default function Visual() {
             profile.barriers || '',
 
           interests:
-            profile.interests || '',
+             profile.interests || '',
+
+          gender:
+            profile.gender || 'not-specified',
         });
 
       console.log(

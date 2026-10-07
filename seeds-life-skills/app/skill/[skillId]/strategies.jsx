@@ -248,8 +248,12 @@ export default function Visual() {
             "Not provided",
 
           interests:
-            profile.interests ||
-            "Not provided",
+           profile.interests ||
+           "Not provided",
+
+          gender:
+           profile.gender ||
+            "not-specified",
 
         });
 

@@ -15,7 +15,9 @@ import { Ionicons } from '@expo/vector-icons';
 import { useStudentProfile } from '../context/StudentProfileContext';
 import ValidationBanner from '../components/ValidationBanner';
 
+
 const avatars = ['🌱', '🌟', '🦋', '🚀', '🐻', '🎨'];
+
 
 const fields = [
   {
@@ -42,50 +44,174 @@ const fields = [
 ];
 
 
+const genderOptions = [
+  {
+    label: 'Girl',
+    value: 'girl',
+  },
+  {
+    label: 'Boy',
+    value: 'boy',
+  },
+  {
+    label: 'Not specified',
+    value: 'not-specified',
+  },
+];
+
+
 export default function StudentProfile() {
 
-  const { profile, loading, error, saveProfile } = useStudentProfile();
+  const {
+    profile,
+    loading,
+    error,
+    saveProfile,
+  } = useStudentProfile();
+
+
   const [draft, setDraft] = useState(null);
+
   const currentDraft = draft || profile;
+
   const [saving, setSaving] = useState(false);
-  const [validationError, setValidationError] = useState('');
-  const [nameError, setNameError] = useState(false);
-  const [ageError, setAgeError] = useState(false);
-  const updateDraft = (patch) => setDraft((current) => ({ ...profile, ...current, ...patch }));
+
+  const [validationError, setValidationError] =
+    useState('');
+
+  const [nameError, setNameError] =
+    useState(false);
+
+  const [ageError, setAgeError] =
+    useState(false);
+
+
+  const updateDraft = (patch) =>
+    setDraft((current) => ({
+      ...profile,
+      ...current,
+      ...patch,
+    }));
+
+
   const handleSave = async () => {
-    if (saving || loading || error) return;
-    const age = currentDraft.age.trim();
-    if (age && (!/^\d+$/.test(age) || Number(age) > 120)) {
-      Alert.alert('Check age', 'Enter an age between 0 and 120, or leave it empty.');
+
+    if (saving || loading || error) {
       return;
     }
+
+
+    const age =
+      currentDraft.age.trim();
+
+
+    if (
+      age &&
+      (!/^\d+$/.test(age) ||
+        Number(age) > 120)
+    ) {
+
+      Alert.alert(
+        'Check age',
+        'Enter an age between 0 and 120, or leave it empty.'
+      );
+
+      return;
+    }
+
+
     try {
+
       setSaving(true);
-      await saveProfile(currentDraft);
+
+      await saveProfile(
+        currentDraft
+      );
+
       router.back();
+
     } catch (cause) {
-      console.error('Error saving student profile:', cause);
-      setValidationError('The student profile could not be saved. Please try again in a moment.');
+
+      console.error(
+        'Error saving student profile:',
+        cause
+      );
+
+      setValidationError(
+        'The student profile could not be saved. Please try again in a moment.'
+      );
+
     } finally {
+
       setSaving(false);
+
     }
   };
 
-  if (loading) return <View style={s.loadingContainer}><ActivityIndicator size="large" /><Text style={s.loadingText}>Loading profile...</Text></View>;
-  if (error) return <View style={s.loadingContainer}><Text style={s.loadingText}>Could not load your profile. Please reopen this page.</Text><Pressable onPress={() => router.back()}><Text>Go back</Text></Pressable></View>;
+
+  if (loading) {
+
+    return (
+      <View style={s.loadingContainer}>
+
+        <ActivityIndicator
+          size="large"
+        />
+
+        <Text style={s.loadingText}>
+          Loading profile...
+        </Text>
+
+      </View>
+    );
+  }
+
+
+  if (error) {
+
+    return (
+      <View style={s.loadingContainer}>
+
+        <Text style={s.loadingText}>
+          Could not load your profile.
+          Please reopen this page.
+        </Text>
+
+        <Pressable
+          onPress={() =>
+            router.back()
+          }
+        >
+
+          <Text>
+            Go back
+          </Text>
+
+        </Pressable>
+
+      </View>
+    );
+  }
+
 
   return (
 
     <ScrollView
       style={s.page}
-      contentContainerStyle={s.content}
+      contentContainerStyle={
+        s.content
+      }
       keyboardShouldPersistTaps="handled"
     >
+
+      {/* HEADER */}
 
       <View style={s.header}>
 
         <Pressable
-          onPress={() => router.back()}
+          onPress={() =>
+            router.back()
+          }
         >
 
           <Ionicons
@@ -101,52 +227,247 @@ export default function StudentProfile() {
         </Text>
 
 
-        <View style={{ width: 28 }} />
+        <View
+          style={{
+            width: 28,
+          }}
+        />
 
       </View>
 
 
-      <View style={s.avatar}><Text style={s.avatarEmoji}>{currentDraft.avatar}</Text></View>
-      <Text style={s.avatarHint}>Choose an avatar</Text>
+      {/* AVATAR */}
+
+      <View style={s.avatar}>
+
+        <Text style={s.avatarEmoji}>
+          {currentDraft.avatar}
+        </Text>
+
+      </View>
+
+
+      <Text style={s.avatarHint}>
+        Choose an avatar
+      </Text>
+
+
       <View style={s.avatarOptions}>
-        {avatars.map((avatar) => <Pressable key={avatar} accessibilityRole="button" accessibilityLabel={`Choose ${avatar} avatar`} onPress={() => updateDraft({ avatar })} style={[s.avatarOption, currentDraft.avatar === avatar && s.avatarSelected]}><Text style={s.optionEmoji}>{avatar}</Text></Pressable>)}
+
+        {avatars.map(
+          (avatar) => (
+
+            <Pressable
+              key={avatar}
+              accessibilityRole="button"
+              accessibilityLabel={
+                `Choose ${avatar} avatar`
+              }
+              onPress={() =>
+                updateDraft({
+                  avatar,
+                })
+              }
+              style={[
+                s.avatarOption,
+                currentDraft.avatar ===
+                  avatar &&
+                  s.avatarSelected,
+              ]}
+            >
+
+              <Text
+                style={
+                  s.optionEmoji
+                }
+              >
+                {avatar}
+              </Text>
+
+            </Pressable>
+
+          )
+        )}
+
       </View>
+
+
+      {/* BASIC INFORMATION */}
 
       <Text style={s.section}>
         Basic Information
       </Text>
 
+
       <View style={s.bannerWrap}>
-        <ValidationBanner message={validationError} />
+
+        <ValidationBanner
+          message={
+            validationError
+          }
+        />
+
       </View>
 
 
+      {/* NAME */}
+
       <TextInput
-        style={[s.input, nameError && s.inputError]}
-        value={currentDraft.name}
+        style={[
+          s.input,
+          nameError &&
+            s.inputError,
+        ]}
+        value={
+          currentDraft.name
+        }
         onChangeText={(v) => {
-          updateDraft({ name: v });
+
+          updateDraft({
+            name: v,
+          });
+
           setNameError(false);
+
           setValidationError('');
+
         }}
         placeholder="Child's first name or nickname *"
       />
-      {nameError && <Text style={s.fieldErrorText}>Student name is required.</Text>}
 
+
+      {nameError && (
+
+        <Text
+          style={
+            s.fieldErrorText
+          }
+        >
+          Student name is required.
+        </Text>
+
+      )}
+
+
+      {/* AGE */}
 
       <TextInput
-        style={[s.input, ageError && s.inputError]}
-        value={currentDraft.age}
+        style={[
+          s.input,
+          ageError &&
+            s.inputError,
+        ]}
+        value={
+          currentDraft.age
+        }
         onChangeText={(v) => {
-          updateDraft({ age: v });
+
+          updateDraft({
+            age: v,
+          });
+
           setAgeError(false);
+
           setValidationError('');
+
         }}
         placeholder="Age (optional)"
         keyboardType="number-pad"
       />
-      {ageError && <Text style={s.fieldErrorText}>Enter an age from 0 to 120, or leave it empty.</Text>}
 
+
+      {ageError && (
+
+        <Text
+          style={
+            s.fieldErrorText
+          }
+        >
+          Enter an age from 0 to 120,
+          or leave it empty.
+        </Text>
+
+      )}
+
+
+      {/* GENDER */}
+
+      <View
+        style={
+          s.genderSection
+        }
+      >
+
+        <Text style={s.label}>
+          Gender
+        </Text>
+
+
+        <Text style={s.hint}>
+          Used to personalize your child's generated visuals.
+        </Text>
+
+
+        <View
+          style={
+            s.genderOptions
+          }
+        >
+
+          {genderOptions.map(
+            (option) => {
+
+              const selected =
+                currentDraft.gender ===
+                option.value;
+
+
+              return (
+
+                <Pressable
+                  key={
+                    option.value
+                  }
+                  accessibilityRole="button"
+                  accessibilityState={{
+                    selected,
+                  }}
+                  onPress={() =>
+                    updateDraft({
+                      gender:
+                        option.value,
+                    })
+                  }
+                  style={[
+                    s.genderOption,
+                    selected &&
+                      s.genderSelected,
+                  ]}
+                >
+
+                  <Text
+                    style={[
+                      s.genderOptionText,
+                      selected &&
+                        s.genderSelectedText,
+                    ]}
+                  >
+                    {option.label}
+                  </Text>
+
+                </Pressable>
+
+              );
+
+            }
+          )}
+
+        </View>
+
+      </View>
+
+
+      {/* PERSONALIZATION FIELDS */}
 
       {fields.map((f) => (
 
@@ -168,13 +489,19 @@ export default function StudentProfile() {
           <TextInput
             style={s.textarea}
             multiline
-            value={currentDraft[f.key]}
+            value={
+              currentDraft[
+                f.key
+              ]
+            }
             onChangeText={(v) =>
               updateDraft({
                 [f.key]: v,
               })
             }
-            placeholder={f.placeholder}
+            placeholder={
+              f.placeholder
+            }
             textAlignVertical="top"
           />
 
@@ -182,6 +509,8 @@ export default function StudentProfile() {
 
       ))}
 
+
+      {/* PRIVACY NOTE */}
 
       <View style={s.note}>
 
@@ -193,28 +522,44 @@ export default function StudentProfile() {
 
 
         <Text style={s.noteText}>
-          Saved to your adult account. This profile personalizes strategies and visuals for your child.
+          Saved to your adult account.
+          This profile personalizes
+          strategies and visuals for
+          your child.
         </Text>
 
       </View>
 
 
+      {/* SAVE */}
+
       <Pressable
         style={[
           s.button,
-          saving && s.buttonDisabled,
+          saving &&
+            s.buttonDisabled,
         ]}
-        onPress={handleSave}
-        disabled={saving}
+        onPress={
+          handleSave
+        }
+        disabled={
+          saving
+        }
       >
 
         {saving ? (
 
-          <ActivityIndicator color="#FFF" />
+          <ActivityIndicator
+            color="#FFF"
+          />
 
         ) : (
 
-          <Text style={s.buttonText}>
+          <Text
+            style={
+              s.buttonText
+            }
+          >
             Save Profile
           </Text>
 
@@ -236,9 +581,11 @@ const s = StyleSheet.create({
     backgroundColor: '#F2F9FF',
   },
 
+
   content: {
     paddingBottom: 40,
   },
+
 
   header: {
     paddingTop: 56,
@@ -246,14 +593,17 @@ const s = StyleSheet.create({
     paddingBottom: 18,
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
+    justifyContent:
+      'space-between',
     backgroundColor: '#FFF',
   },
+
 
   headerTitle: {
     fontSize: 21,
     fontWeight: '800',
   },
+
 
   avatar: {
     width: 92,
@@ -266,12 +616,54 @@ const s = StyleSheet.create({
     marginTop: 24,
   },
 
-  avatarEmoji: { fontSize: 48 },
-  avatarHint: { textAlign: 'center', marginTop: 10, color: '#526170', fontWeight: '700' },
-  avatarOptions: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'center', gap: 8, marginHorizontal: 20, marginTop: 12 },
-  avatarOption: { width: 46, height: 46, borderRadius: 23, alignItems: 'center', justifyContent: 'center', backgroundColor: '#FFF', borderWidth: 2, borderColor: 'transparent' },
-  avatarSelected: { borderColor: '#258DEB', backgroundColor: '#E6F2FF' },
-  optionEmoji: { fontSize: 25 },
+
+  avatarEmoji: {
+    fontSize: 48,
+  },
+
+
+  avatarHint: {
+    textAlign: 'center',
+    marginTop: 10,
+    color: '#526170',
+    fontWeight: '700',
+  },
+
+
+  avatarOptions: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'center',
+    gap: 8,
+    marginHorizontal: 20,
+    marginTop: 12,
+  },
+
+
+  avatarOption: {
+    width: 46,
+    height: 46,
+    borderRadius: 23,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#FFF',
+    borderWidth: 2,
+    borderColor:
+      'transparent',
+  },
+
+
+  avatarSelected: {
+    borderColor: '#258DEB',
+    backgroundColor: '#E6F2FF',
+  },
+
+
+  optionEmoji: {
+    fontSize: 25,
+  },
+
+
   section: {
     fontSize: 17,
     fontWeight: '800',
@@ -279,9 +671,29 @@ const s = StyleSheet.create({
     marginBottom: 10,
   },
 
-  bannerWrap: { marginHorizontal: 20, marginBottom: 4 },
-  inputError: { borderColor: '#D92D20', backgroundColor: '#FFF8F7' },
-  fieldErrorText: { marginHorizontal: 20, marginTop: -6, marginBottom: 10, color: '#B42318', fontSize: 13, fontWeight: '600' },
+
+  bannerWrap: {
+    marginHorizontal: 20,
+    marginBottom: 4,
+  },
+
+
+  inputError: {
+    borderColor: '#D92D20',
+    backgroundColor: '#FFF8F7',
+  },
+
+
+  fieldErrorText: {
+    marginHorizontal: 20,
+    marginTop: -6,
+    marginBottom: 10,
+    color: '#B42318',
+    fontSize: 13,
+    fontWeight: '600',
+  },
+
+
   input: {
     marginHorizontal: 20,
     marginBottom: 12,
@@ -293,6 +705,57 @@ const s = StyleSheet.create({
     fontSize: 16,
   },
 
+
+  /* GENDER */
+
+  genderSection: {
+    marginHorizontal: 20,
+    marginTop: 8,
+    marginBottom: 6,
+    backgroundColor: '#FFF',
+    borderRadius: 18,
+    padding: 16,
+  },
+
+
+  genderOptions: {
+    flexDirection: 'row',
+    gap: 8,
+    marginTop: 4,
+  },
+
+
+  genderOption: {
+    flex: 1,
+    borderWidth: 1,
+    borderColor: '#D9E4EE',
+    borderRadius: 12,
+    paddingVertical: 12,
+    paddingHorizontal: 6,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+
+
+  genderSelected: {
+    borderColor: '#258DEB',
+    backgroundColor: '#E6F2FF',
+  },
+
+
+  genderOptionText: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#526170',
+    textAlign: 'center',
+  },
+
+
+  genderSelectedText: {
+    color: '#1672C4',
+  },
+
+
   field: {
     marginHorizontal: 20,
     marginTop: 14,
@@ -301,11 +764,13 @@ const s = StyleSheet.create({
     padding: 16,
   },
 
+
   label: {
     fontSize: 17,
     fontWeight: '800',
     color: '#17213A',
   },
+
 
   hint: {
     fontSize: 13,
@@ -313,6 +778,7 @@ const s = StyleSheet.create({
     marginTop: 3,
     marginBottom: 10,
   },
+
 
   textarea: {
     minHeight: 92,
@@ -324,6 +790,7 @@ const s = StyleSheet.create({
     lineHeight: 21,
   },
 
+
   note: {
     margin: 20,
     flexDirection: 'row',
@@ -333,11 +800,13 @@ const s = StyleSheet.create({
     borderRadius: 14,
   },
 
+
   noteText: {
     flex: 1,
     color: '#426557',
     lineHeight: 19,
   },
+
 
   button: {
     marginHorizontal: 20,
@@ -349,9 +818,11 @@ const s = StyleSheet.create({
     justifyContent: 'center',
   },
 
+
   buttonDisabled: {
     opacity: 0.7,
   },
+
 
   buttonText: {
     color: '#FFF',
@@ -359,12 +830,14 @@ const s = StyleSheet.create({
     fontWeight: '800',
   },
 
+
   loadingContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
     backgroundColor: '#F2F9FF',
   },
+
 
   loadingText: {
     marginTop: 12,
