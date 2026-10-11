@@ -117,11 +117,11 @@ export default function StepHelp() {
         'Help me identify one or more tiny missing physical or observable actions. Break the difficult step down into very small actions I can try. Tell me what to watch for before moving to the next action.',
       ].join('\n');
 
-      const chatAssistant = httpsCallable(functions, 'chatAssistant');
-      const result = await chatAssistant({
-        screenPath: `/skill/${resolvedSkillId}/step-help`,
-        params: { skillId: String(resolvedSkillId) },
-        messages: [{ role: 'user', content: prompt }],
+      const parentAssistant = httpsCallable(functions, 'parentAssistant');
+      const result = await parentAssistant({
+        mode: 'advice',
+        question: prompt.slice(0, 600),
+        useProfile: true,
       });
 
       const response =
