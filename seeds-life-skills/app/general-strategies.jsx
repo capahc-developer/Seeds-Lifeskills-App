@@ -11,6 +11,16 @@ import {
 import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { getStrategyGuides } from '../lib/strategyGuides';
+import { ResourceList } from '../components/EmbeddedResourceCard';
+
+const generalResources = [
+  {
+    title: 'General Strategies Video',
+    description: 'Watch the SEEDS overview video for practical teaching strategies.',
+    url: 'https://www.youtube.com/watch?v=VPt74UPW_HA',
+    type: 'video',
+  },
+];
 
 export default function GeneralStrategies() {
   const [strategies, setStrategies] = useState([]);
@@ -153,6 +163,9 @@ export default function GeneralStrategies() {
               caregivers. Read straight through, or use the table of contents to
               jump to the strategy you need.
             </Text>
+            <View style={s.introResources}>
+              <ResourceList resources={generalResources} compact />
+            </View>
           </View>
 
           {loading && (
@@ -264,6 +277,12 @@ export default function GeneralStrategies() {
                 {strategy.adjustmentOptions?.length ? (
                   <GuideBlock title="Possible adjustments">
                     {renderBullets(strategy.adjustmentOptions)}
+                  </GuideBlock>
+                ) : null}
+
+                {strategy.resources?.length ? (
+                  <GuideBlock title="Videos & resources">
+                    <ResourceList resources={strategy.resources} compact />
                   </GuideBlock>
                 ) : null}
 
@@ -439,6 +458,9 @@ const s = StyleSheet.create({
     lineHeight: 22,
     color: '#526173',
     marginTop: 7,
+  },
+  introResources: {
+    marginTop: 14,
   },
   status: {
     padding: 40,

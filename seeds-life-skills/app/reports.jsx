@@ -117,6 +117,10 @@ export default function Reports() {
   const totalSessions =
     recentLogs.length;
 
+  const totalSeeds = logs.length;
+  const flowersGrown = Math.floor(totalSeeds / 5);
+  const seedsGrowing = totalSeeds % 5;
+
 
   // -----------------------------------
   // SUCCESS RATE
@@ -540,6 +544,35 @@ export default function Reports() {
 
       </View>
 
+
+      <View style={s.gardenCard}>
+        <View style={s.gardenHeader}>
+          <View>
+            <Text style={s.gardenEyebrow}>YOUR GARDEN</Text>
+            <Text style={s.gardenTitle}>Growing Together</Text>
+          </View>
+          <Text style={s.gardenEmoji}>🌻</Text>
+        </View>
+
+        <Text style={s.gardenMessage}>
+          Every practice log plants a seed. Five seeds bloom into a flower.
+        </Text>
+
+        <View style={s.gardenStats}>
+          <View style={s.gardenStat}>
+            <Text style={s.gardenStatValue}>🌱 {totalSeeds}</Text>
+            <Text style={s.gardenStatLabel}>seeds earned</Text>
+          </View>
+          <View style={s.gardenStat}>
+            <Text style={s.gardenStatValue}>🌸 {flowersGrown}</Text>
+            <Text style={s.gardenStatLabel}>flowers grown</Text>
+          </View>
+          <View style={s.gardenStat}>
+            <Text style={s.gardenStatValue}>🌿 {seedsGrowing}</Text>
+            <Text style={s.gardenStatLabel}>toward next</Text>
+          </View>
+        </View>
+      </View>
 
       {/* SUMMARY */}
 
@@ -1056,6 +1089,75 @@ const s = StyleSheet.create({
     fontSize: 14,
     fontWeight: '700',
     color: '#17213A',
+  },
+
+
+  gardenCard: {
+    marginHorizontal: 16,
+    marginTop: 18,
+    backgroundColor: '#FFF9E8',
+    borderRadius: 22,
+    padding: 18,
+    borderWidth: 1,
+    borderColor: '#F2E3A8',
+  },
+
+  gardenHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+
+  gardenEyebrow: {
+    fontSize: 11,
+    fontWeight: '800',
+    letterSpacing: 0.8,
+    color: '#6C8A45',
+  },
+
+  gardenTitle: {
+    marginTop: 3,
+    fontSize: 20,
+    fontWeight: '800',
+    color: '#3E5A2A',
+  },
+
+  gardenEmoji: {
+    fontSize: 42,
+  },
+
+  gardenMessage: {
+    marginTop: 8,
+    fontSize: 13,
+    lineHeight: 18,
+    color: '#64724F',
+  },
+
+  gardenStats: {
+    flexDirection: 'row',
+    gap: 8,
+    marginTop: 14,
+  },
+
+  gardenStat: {
+    flex: 1,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 14,
+    padding: 10,
+    alignItems: 'center',
+  },
+
+  gardenStatValue: {
+    fontSize: 16,
+    fontWeight: '800',
+    color: '#3E5A2A',
+  },
+
+  gardenStatLabel: {
+    marginTop: 3,
+    fontSize: 10,
+    color: '#718096',
+    textAlign: 'center',
   },
 
 

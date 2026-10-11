@@ -59,6 +59,10 @@ export default function PracticeLogScreen() {
     year: 'numeric',
   });
 
+  const seedCount = logs.length;
+  const flowers = Math.floor(seedCount / 5);
+  const seedsTowardNextFlower = seedCount % 5;
+
   useEffect(() => {
     const loadData = async () => {
       try {
@@ -142,7 +146,10 @@ export default function PracticeLogScreen() {
       setShowSkills(false);
       setShowFocus(false);
 
-      Alert.alert('Saved', 'Practice record saved successfully.');
+      Alert.alert(
+        'You logged it! 🌱',
+        '+1 seed was added to your garden. Every practice step helps your garden grow.'
+      );
     } catch (error) {
       console.error('Error saving practice log:', error);
       setValidationError('The practice record could not be saved. Please check your connection and try again.');
@@ -170,6 +177,37 @@ export default function PracticeLogScreen() {
         <Text style={styles.headerSubtitle}>
           Keep a simple record of what worked, what was difficult, and what to try next.
         </Text>
+
+        <View style={styles.gardenCard}>
+          <View style={styles.gardenTop}>
+            <View>
+              <Text style={styles.gardenEyebrow}>YOUR GARDEN</Text>
+              <Text style={styles.gardenTitle}>
+                Small steps. Big growth.
+              </Text>
+            </View>
+            <Text style={styles.gardenEmoji}>🌻</Text>
+          </View>
+
+          <View style={styles.gardenStats}>
+            <View style={styles.gardenStat}>
+              <Text style={styles.gardenStatValue}>🌱 {seedCount}</Text>
+              <Text style={styles.gardenStatLabel}>seeds earned</Text>
+            </View>
+            <View style={styles.gardenStat}>
+              <Text style={styles.gardenStatValue}>🌸 {flowers}</Text>
+              <Text style={styles.gardenStatLabel}>flowers grown</Text>
+            </View>
+          </View>
+
+          <Text style={styles.gardenHint}>
+            {seedCount === 0
+              ? 'Log your first practice session to plant a seed.'
+              : seedsTowardNextFlower === 0
+                ? 'A flower bloomed! Keep practicing to start the next one.'
+                : `${5 - seedsTowardNextFlower} more practice ${5 - seedsTowardNextFlower === 1 ? 'log' : 'logs'} until the next flower blooms.`}
+          </Text>
+        </View>
 
         <View style={styles.formCard}>
           <Text style={styles.sectionTitle}>Add a Practice Record</Text>
@@ -420,6 +458,61 @@ const styles = StyleSheet.create({
   headerTitle: { fontSize: 24, fontWeight: '800', color: '#171B34' },
   headerSpacer: { width: 90 },
   headerSubtitle: { textAlign: 'center', fontSize: 15, lineHeight: 21, color: '#7A8495', marginTop: 7, marginBottom: 18 },
+  gardenCard: {
+    backgroundColor: '#FFF9E8',
+    borderRadius: 24,
+    padding: 18,
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: '#F2E3A8',
+  },
+  gardenTop: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  gardenEyebrow: {
+    fontSize: 11,
+    fontWeight: '800',
+    color: '#6C8A45',
+    letterSpacing: 0.8,
+  },
+  gardenTitle: {
+    marginTop: 3,
+    fontSize: 20,
+    fontWeight: '800',
+    color: '#3E5A2A',
+  },
+  gardenEmoji: {
+    fontSize: 42,
+  },
+  gardenStats: {
+    flexDirection: 'row',
+    gap: 10,
+    marginTop: 14,
+  },
+  gardenStat: {
+    flex: 1,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 15,
+    padding: 12,
+  },
+  gardenStatValue: {
+    fontSize: 18,
+    fontWeight: '800',
+    color: '#3E5A2A',
+  },
+  gardenStatLabel: {
+    marginTop: 3,
+    fontSize: 11,
+    color: '#718096',
+  },
+  gardenHint: {
+    marginTop: 12,
+    fontSize: 13,
+    lineHeight: 18,
+    color: '#64724F',
+  },
   formCard: { backgroundColor: '#FFFFFF', borderRadius: 24, padding: 18 },
   sectionTitle: { fontSize: 23, fontWeight: '800', color: '#171B34', marginBottom: 18 },
   label: { fontSize: 16, fontWeight: '600', color: '#171B34', marginBottom: 8, marginTop: 14 },
