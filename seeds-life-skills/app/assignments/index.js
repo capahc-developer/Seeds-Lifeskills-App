@@ -163,7 +163,10 @@ export default function PracticeLogScreen() {
           <Text style={{ fontSize: 16, color: '#647C69', marginTop: 12, textAlign: 'center' }}>Thank you for showing up. Every effort matters.</Text>
           <View style={{ backgroundColor: '#FFF4CE', padding: 22, borderRadius: 22, width: '100%', marginTop: 28, alignItems: 'center' }}>
             <Text style={{ fontSize: 48 }}>🌱</Text>
-            <Text style={{ fontSize: 20, fontWeight: '800', color: '#467548' }}>+1 seed in your garden!</Text>
+            <Text style={{ fontSize: 20, fontWeight: '800', color: '#467548' }}>+1 seed earned!</Text>
+            <Text style={{ fontSize: 45, marginTop: 12 }}>💧</Text>
+            <Text style={{ fontSize: 20, fontWeight: '800', color: '#467548', textAlign: 'center' }}>+1 watering credit!</Text>
+            <Text style={{ fontSize: 15, color: '#56765C', marginTop: 10, textAlign: 'center' }}>Plant your new seed and choose any growing plant to water.</Text>
           </View>
           <Pressable style={[styles.saveButton, { width: '100%', paddingHorizontal: 20 }]} onPress={() => router.push('/garden')}><Text style={styles.saveButtonText}>View Your Garden</Text></Pressable>
           <Pressable onPress={() => setCelebrating(false)} style={{ padding: 18 }}><Text style={{ fontSize: 16, color: '#347D55', fontWeight: '700' }}>Log Another Practice</Text></Pressable>
