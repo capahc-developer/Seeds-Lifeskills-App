@@ -12,6 +12,7 @@ import { useEffect, useState } from 'react';
 import { doc, getDoc } from 'firebase/firestore';
 
 import { auth, db } from '../../lib/firebase';
+import { ResourceList } from '../../components/EmbeddedResourceCard';
 
 const genericSteps = [
   'Get ready and gather what you need.',
@@ -19,6 +20,13 @@ const genericSteps = [
   'Continue through the task one step at a time.',
   'Check that the task is complete.',
 ];
+
+const seedsSkillResource = {
+  title: 'SEEDS skill video and resources',
+  description: 'Open the SEEDS resource page for supporting materials and videos.',
+  url: 'https://www.capa-hc.org/seeds-2/',
+  type: 'video',
+};
 
 export default function Skill() {
   const { skillId } = useLocalSearchParams();
@@ -240,6 +248,22 @@ export default function Skill() {
         ))}
       </View>
 
+      <View style={s.card}>
+        <Text style={s.cardTitle}>
+          Videos & Resources
+        </Text>
+        <Text style={s.resourceHint}>
+          Skill documents can include a resources array in Firebase.
+          Video and link cards added there will appear automatically.
+        </Text>
+        <ResourceList
+          resources={[
+            ...(Array.isArray(skill.resources) ? skill.resources : []),
+            seedsSkillResource,
+          ]}
+        />
+      </View>
+
       {/* Strategies */}
       <Pressable
         style={s.button}
@@ -399,6 +423,14 @@ const s = StyleSheet.create({
     lineHeight: 21,
     color: '#34435A',
     paddingTop: 4,
+  },
+
+  resourceHint: {
+    marginTop: 6,
+    marginBottom: 12,
+    color: '#718096',
+    fontSize: 12,
+    lineHeight: 17,
   },
 
   button: {
