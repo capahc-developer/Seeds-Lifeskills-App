@@ -90,3 +90,36 @@ npx firebase-tools deploy --only firestore:rules,functions:parentAssistant --pro
 ```
 
 Enter an OpenAI API key when the CLI prompts; never add that key to Expo environment variables or Git. The function uses `gpt-5-mini` through the OpenAI Responses API, requests `store: false`, and holds the key in Firebase Secret Manager. OpenAI API billing is separate from a ChatGPT subscription. Review the existing live Firestore rules before deploying: CLI deployment replaces them. Then make a new EAS production build for TestFlight. The assistant is a support tool; parents should review suggestions before using them.
+
+
+## Adding videos and links
+
+Skill and strategy screens support reusable in-app resource cards. Links open in an in-app browser sheet using `expo-web-browser`.
+
+For a skill document in Firestore, add a `resources` array:
+
+```json
+[
+  {
+    "title": "How to practice this skill",
+    "description": "Short optional description",
+    "url": "https://www.youtube.com/watch?v=...",
+    "type": "video"
+  },
+  {
+    "title": "Parent guide",
+    "url": "https://example.org/guide",
+    "type": "link"
+  }
+]
+```
+
+The same `resources` array can be added to a `strategyGuides` document. No screen code changes are required after adding the data.
+
+Supported fields:
+- `title`: display name
+- `description`: optional supporting text
+- `url`: required web URL
+- `type`: `video` or `link`
+
+YouTube and Vimeo URLs are also automatically recognized as video resources.
