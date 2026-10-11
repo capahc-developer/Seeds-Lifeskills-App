@@ -3,6 +3,7 @@ import {
   ActivityIndicator,
   Alert,
   Image,
+  ImageBackground,
   Platform,
   Pressable,
   ScrollView,
@@ -13,11 +14,12 @@ import {
 import { router, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { doc, getDoc } from 'firebase/firestore';
+import { getDownloadURL, listAll, ref as storageRef } from 'firebase/storage';
 import * as ImagePicker from 'expo-image-picker';
 import * as Print from 'expo-print';
 import * as Sharing from 'expo-sharing';
 
-import { auth, db } from '../../../lib/firebase';
+import { auth, db, storage } from '../../../lib/firebase';
 import { findIndependentStepsSkill } from '../../../data/independentStepsSkills';
 
 const genericSteps = [
@@ -125,6 +127,17 @@ function photoDataUri(photo) {
   return `data:${photo.mimeType || 'image/jpeg'};base64,${photo.base64}`;
 }
 
+function titleFromFileName(fileName) {
+  return String(fileName || '')
+    .replace(/\.[^.]+$/, '')
+    .replace(/[-_]+/g, ' ')
+    .replace(/\b\w/g, (letter) => letter.toUpperCase());
+}
+
+function isImageFile(fileName) {
+  return /\.(png|jpe?g|webp)$/i.test(String(fileName || ''));
+}
+
 export default function VisualTemplateBuilder() {
   const { skillId } = useLocalSearchParams();
   const resolvedSkillId = Array.isArray(skillId) ? skillId[0] : skillId;
@@ -134,6 +147,9 @@ export default function VisualTemplateBuilder() {
   const [photos, setPhotos] = useState({});
   const [templateId, setTemplateId] = useState('photo-left');
   const [backgroundId, setBackgroundId] = useState('garden');
+  const [firebaseBackgrounds, setFirebaseBackgrounds] = useState([]);
+  const [backgroundsLoading, setBackgroundsLoading] = useState(true);
+  const [backgroundsError, setBackgroundsError] = useState('');
   const [loading, setLoading] = useState(true);
   const [working, setWorking] = useState(false);
 
@@ -198,16 +214,79 @@ export default function VisualTemplateBuilder() {
     if (resolvedSkillId) load();
   }, [resolvedSkillId]);
 
+  useEffect(() => {
+    let active = true;
+
+    const loadFirebaseBackgrounds = async () => {
+      try {
+        setBackgroundsLoading(true);
+        setBackgroundsError('');
+
+        const folder = storageRef(storage, 'visual-template-backgrounds');
+        const result = await listAll(folder);
+        const imageItems = result.items.filter((item) => isImageFile(item.name));
+
+        const loaded = await Promise.all(
+          imageItems.map(async (item, index) => {
+            const imageUrl = await getDownloadURL(item);
+            const baseTheme = backgroundThemes[index % backgroundThemes.length];
+
+            return {
+              ...baseTheme,
+              id: `firebase-${item.fullPath}`,
+              title: titleFromFileName(item.name),
+              subtitle: 'Firebase background',
+              imageUrl,
+              storagePath: item.fullPath,
+              icon: 'image-outline',
+            };
+          })
+        );
+
+        if (!active) return;
+
+        setFirebaseBackgrounds(loaded);
+
+        if (loaded.length > 0) {
+          setBackgroundId((current) =>
+            current.startsWith('firebase-') ? current : loaded[0].id
+          );
+        }
+      } catch (error) {
+        console.error('Error loading Firebase template backgrounds:', error);
+        if (active) {
+          setBackgroundsError(
+            'Firebase backgrounds could not load. Built-in backgrounds are still available.'
+          );
+        }
+      } finally {
+        if (active) setBackgroundsLoading(false);
+      }
+    };
+
+    loadFirebaseBackgrounds();
+
+    return () => {
+      active = false;
+    };
+  }, []);
+
   const selectedTemplate = useMemo(
     () => templates.find((item) => item.id === templateId) || templates[0],
     [templateId]
   );
 
+  const backgroundOptions = useMemo(
+    () => [...firebaseBackgrounds, ...backgroundThemes],
+    [firebaseBackgrounds]
+  );
+
   const selectedBackground = useMemo(
     () =>
-      backgroundThemes.find((item) => item.id === backgroundId) ||
+      backgroundOptions.find((item) => item.id === backgroundId) ||
+      backgroundOptions[0] ||
       backgroundThemes[0],
-    [backgroundId]
+    [backgroundId, backgroundOptions]
   );
 
   async function choosePhoto(stepIndex) {
@@ -301,7 +380,8 @@ export default function VisualTemplateBuilder() {
               margin: 0;
               padding: 26px;
               color: ${theme.text};
-              background: ${theme.pageBg};
+              background-color: ${theme.pageBg};
+              ${theme.imageUrl ? `background-image: linear-gradient(rgba(255,255,255,0.72), rgba(255,255,255,0.72)), url("${theme.imageUrl}"); background-size: cover; background-position: center; background-attachment: fixed;` : ''}
             }
             h1 { text-align: center; color: ${theme.accent}; margin: 0 0 8px; }
             .sub {
@@ -497,12 +577,21 @@ export default function VisualTemplateBuilder() {
       </View>
 
       <Text style={s.sectionTitle}>1. Choose a background</Text>
+      {backgroundsLoading && (
+        <View style={s.backgroundStatus}>
+          <ActivityIndicator size="small" color="#7559E8" />
+          <Text style={s.backgroundStatusText}>Loading Firebase backgrounds...</Text>
+        </View>
+      )}
+      {!!backgroundsError && (
+        <Text style={s.backgroundError}>{backgroundsError}</Text>
+      )}
       <ScrollView
         horizontal
         showsHorizontalScrollIndicator={false}
         contentContainerStyle={s.themeRow}
       >
-        {backgroundThemes.map((theme) => {
+        {backgroundOptions.map((theme) => {
           const selected = theme.id === backgroundId;
           return (
             <Pressable
@@ -516,25 +605,37 @@ export default function VisualTemplateBuilder() {
                 },
               ]}
             >
-              <View
-                style={[
-                  s.themePreview,
-                  { backgroundColor: theme.cardBg, borderColor: theme.border },
-                ]}
-              >
-                <View
-                  style={[s.themePreviewCircle, { backgroundColor: theme.accentSoft }]}
-                />
-                <View
-                  style={[s.themePreviewBar, { backgroundColor: theme.border }]}
-                />
+              {theme.imageUrl ? (
+                <ImageBackground
+                  source={{ uri: theme.imageUrl }}
+                  style={s.themePreviewImage}
+                  imageStyle={s.themePreviewImageInner}
+                >
+                  <View style={s.themePreviewShade}>
+                    <Ionicons name="image-outline" size={24} color="#FFFFFF" />
+                  </View>
+                </ImageBackground>
+              ) : (
                 <View
                   style={[
-                    s.themePreviewBar,
-                    { backgroundColor: theme.border, width: '68%' },
+                    s.themePreview,
+                    { backgroundColor: theme.cardBg, borderColor: theme.border },
                   ]}
-                />
-              </View>
+                >
+                  <View
+                    style={[s.themePreviewCircle, { backgroundColor: theme.accentSoft }]}
+                  />
+                  <View
+                    style={[s.themePreviewBar, { backgroundColor: theme.border }]}
+                  />
+                  <View
+                    style={[
+                      s.themePreviewBar,
+                      { backgroundColor: theme.border, width: '68%' },
+                    ]}
+                  />
+                </View>
+              )}
 
               <Ionicons name={theme.icon} size={22} color={theme.accent} />
               <Text style={[s.themeTitle, { color: theme.text }]}>{theme.title}</Text>
@@ -779,6 +880,27 @@ const s = StyleSheet.create({
     color: '#17213A',
   },
 
+  backgroundStatus: {
+    marginHorizontal: 18,
+    marginTop: 9,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+
+  backgroundStatusText: {
+    fontSize: 12,
+    color: '#716A89',
+  },
+
+  backgroundError: {
+    marginHorizontal: 18,
+    marginTop: 8,
+    fontSize: 12,
+    lineHeight: 17,
+    color: '#A15C00',
+  },
+
   themeRow: {
     paddingHorizontal: 16,
     paddingVertical: 14,
@@ -793,8 +915,26 @@ const s = StyleSheet.create({
     borderWidth: 2,
   },
 
+  themePreviewImage: {
+    height: 76,
+    borderRadius: 12,
+    overflow: 'hidden',
+    marginBottom: 10,
+  },
+
+  themePreviewImageInner: {
+    borderRadius: 12,
+  },
+
+  themePreviewShade: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.18)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+
   themePreview: {
-    height: 56,
+    height: 76,
     borderRadius: 12,
     borderWidth: 1,
     marginBottom: 10,
