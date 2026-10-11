@@ -21,8 +21,9 @@ import { httpsCallable } from 'firebase/functions';
 import { functions } from '../lib/firebase';
 
 const starterPrompts = [
+  'Break this step into smaller steps.',
+  'What tiny step might be missing?',
   'How can I make this easier?',
-  'Give me a practice idea.',
   'How should I prompt my child?',
 ];
 
@@ -39,7 +40,7 @@ export default function FloatingAssistant() {
     {
       role: 'assistant',
       content:
-        'Hi! I can help you teach skills, adjust steps, and come up with practice ideas. What would you like help with?',
+        'Hi! Tell me where your child gets stuck. I can help break a skill into smaller, observable steps and suggest a missing micro-step to try.',
     },
   ]);
 
