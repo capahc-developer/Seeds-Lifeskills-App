@@ -5,6 +5,7 @@ import {
   StyleSheet,
   Text,
   View,
+  Linking,
 } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -150,6 +151,21 @@ export default function Skill() {
         )}
       </View>
 
+      <Pressable
+        accessibilityRole="link"
+        style={s.resourceCard}
+        onPress={() => Linking.openURL('https://www.capa-hc.org/seeds-2/')}
+      >
+        <View style={s.resourceIcon}>
+          <Ionicons name="play-circle-outline" size={24} color="#248A6B" />
+        </View>
+        <View style={{ flex: 1 }}>
+          <Text style={s.resourceTitle}>SEEDS Skill Video</Text>
+          <Text style={s.resourceText}>Open the SEEDS video and resources page</Text>
+        </View>
+        <Ionicons name="open-outline" size={19} color="#718096" />
+      </Pressable>
+
       <View style={s.card}>
         <View style={s.stepsHeading}>
           <View style={{ flex: 1 }}>
@@ -226,6 +242,36 @@ const s = StyleSheet.create({
     padding: 18,
   },
   cardTitle: { fontSize: 17, fontWeight: '800' },
+  resourceCard: {
+    marginHorizontal: 16,
+    marginBottom: 14,
+    padding: 15,
+    borderRadius: 18,
+    backgroundColor: '#F3FAF7',
+    borderWidth: 1,
+    borderColor: '#D7ECE0',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  resourceIcon: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: '#E3F3E9',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  resourceTitle: {
+    fontSize: 15,
+    fontWeight: '800',
+    color: '#315C42',
+  },
+  resourceText: {
+    marginTop: 3,
+    fontSize: 12,
+    color: '#718096',
+  },
   body: {
     fontSize: 15,
     lineHeight: 22,
