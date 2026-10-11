@@ -45,7 +45,13 @@
       "expo-font",
       "expo-image",
       "expo-status-bar",
-      "expo-web-browser"
+      "expo-web-browser",
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Independent Steps uses photos you select only to build a visual template on your device. Photos are not uploaded to Firebase."
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true,
