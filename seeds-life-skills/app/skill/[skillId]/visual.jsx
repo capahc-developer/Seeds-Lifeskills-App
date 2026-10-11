@@ -27,6 +27,69 @@ const genericSteps = [
   'Check that the task is complete.',
 ];
 
+const backgroundThemes = [
+  {
+    id: 'garden',
+    title: 'Garden',
+    subtitle: 'Soft green and calm',
+    icon: 'leaf-outline',
+    pageBg: '#F3FAF6',
+    cardBg: '#FFFFFF',
+    accent: '#45A66B',
+    accentSoft: '#E3F3E9',
+    border: '#D7ECE0',
+    text: '#243247',
+    muted: '#6C7A70',
+    placeholderBg: '#F5F9F6',
+    placeholderBorder: '#AFC4B5',
+  },
+  {
+    id: 'sky',
+    title: 'Sky',
+    subtitle: 'Blue and airy',
+    icon: 'cloud-outline',
+    pageBg: '#F2F8FF',
+    cardBg: '#FFFFFF',
+    accent: '#4A90E2',
+    accentSoft: '#E4F0FF',
+    border: '#D8E8FA',
+    text: '#20324A',
+    muted: '#6D7D90',
+    placeholderBg: '#F5F9FF',
+    placeholderBorder: '#B5C8DD',
+  },
+  {
+    id: 'sunshine',
+    title: 'Sunshine',
+    subtitle: 'Warm and cheerful',
+    icon: 'sunny-outline',
+    pageBg: '#FFF9ED',
+    cardBg: '#FFFFFF',
+    accent: '#E5A623',
+    accentSoft: '#FFF0CC',
+    border: '#F4E1B8',
+    text: '#4A3720',
+    muted: '#8A745A',
+    placeholderBg: '#FFFBF3',
+    placeholderBorder: '#D9C39B',
+  },
+  {
+    id: 'lavender',
+    title: 'Lavender',
+    subtitle: 'Purple and gentle',
+    icon: 'flower-outline',
+    pageBg: '#F8F4FF',
+    cardBg: '#FFFFFF',
+    accent: '#8B6FD6',
+    accentSoft: '#EDE5FF',
+    border: '#DED2FA',
+    text: '#34294D',
+    muted: '#7A7191',
+    placeholderBg: '#FBF9FF',
+    placeholderBorder: '#BFB2DE',
+  },
+];
+
 const templates = [
   {
     id: 'photo-left',
@@ -70,6 +133,7 @@ export default function VisualTemplateBuilder() {
   const [steps, setSteps] = useState([]);
   const [photos, setPhotos] = useState({});
   const [templateId, setTemplateId] = useState('photo-left');
+  const [backgroundId, setBackgroundId] = useState('garden');
   const [loading, setLoading] = useState(true);
   const [working, setWorking] = useState(false);
 
@@ -77,6 +141,7 @@ export default function VisualTemplateBuilder() {
     const load = async () => {
       try {
         setLoading(true);
+
         const fallbackSkill = findIndependentStepsSkill(resolvedSkillId);
         const skillSnap = await getDoc(doc(db, 'skills', String(resolvedSkillId)));
 
@@ -138,6 +203,13 @@ export default function VisualTemplateBuilder() {
     [templateId]
   );
 
+  const selectedBackground = useMemo(
+    () =>
+      backgroundThemes.find((item) => item.id === backgroundId) ||
+      backgroundThemes[0],
+    [backgroundId]
+  );
+
   async function choosePhoto(stepIndex) {
     try {
       const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
@@ -151,7 +223,7 @@ export default function VisualTemplateBuilder() {
       }
 
       const result = await ImagePicker.launchImageLibraryAsync({
-        mediaTypes: ['images'],
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
         allowsEditing: true,
         quality: 0.8,
         base64: true,
@@ -184,16 +256,19 @@ export default function VisualTemplateBuilder() {
   }
 
   function buildHtml() {
+    const theme = selectedBackground;
+
     const rows = steps
       .map((step, index) => {
         const photo = photos[index];
         const dataUri = photoDataUri(photo);
+
         const imageBlock =
           templateId === 'text-only'
-            ? '<div class="photo placeholder">Add photo here</div>'
+            ? `<div class="photo placeholder">Add photo here</div>`
             : dataUri
               ? `<img class="photo" src="${dataUri}" />`
-              : '<div class="photo placeholder">Add photo here</div>';
+              : `<div class="photo placeholder">Add photo here</div>`;
 
         if (templateId === 'photo-top') {
           return `
@@ -225,24 +300,25 @@ export default function VisualTemplateBuilder() {
               font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
               margin: 0;
               padding: 26px;
-              color: #17213A;
-              background: #ffffff;
+              color: ${theme.text};
+              background: ${theme.pageBg};
             }
-            h1 { text-align: center; color: #315C42; margin: 0 0 8px; }
+            h1 { text-align: center; color: ${theme.accent}; margin: 0 0 8px; }
             .sub {
               text-align: center;
-              color: #657184;
+              color: ${theme.muted};
               margin-bottom: 24px;
             }
             .privacy {
               text-align: center;
               font-size: 11px;
-              color: #7A8495;
+              color: ${theme.muted};
               margin-bottom: 18px;
             }
             .step {
               page-break-inside: avoid;
-              border: 2px solid #DCEBE2;
+              border: 2px solid ${theme.border};
+              background: ${theme.cardBg};
               border-radius: 18px;
               padding: 16px;
               margin: 0 0 16px;
@@ -265,8 +341,8 @@ export default function VisualTemplateBuilder() {
               height: 38px;
               min-width: 38px;
               border-radius: 19px;
-              background: #E3F3E9;
-              color: #315C42;
+              background: ${theme.accentSoft};
+              color: ${theme.accent};
               font-weight: 800;
               display: flex;
               align-items: center;
@@ -278,15 +354,16 @@ export default function VisualTemplateBuilder() {
               height: 130px;
               object-fit: cover;
               border-radius: 12px;
-              background: #F2F5F3;
+              background: ${theme.placeholderBg};
             }
             .step.top .photo {
               width: 100%;
               height: 240px;
             }
             .placeholder {
-              border: 2px dashed #A9BDB0;
-              color: #7A8C80;
+              border: 2px dashed ${theme.placeholderBorder};
+              color: ${theme.muted};
+              background: ${theme.placeholderBg};
               display: flex;
               align-items: center;
               justify-content: center;
@@ -356,18 +433,25 @@ export default function VisualTemplateBuilder() {
 
   if (loading) {
     return (
-      <View style={s.center}>
-        <ActivityIndicator size="large" color="#45A66B" />
-        <Text style={s.centerText}>Loading template...</Text>
+      <View style={[s.center, { backgroundColor: selectedBackground.pageBg }]}>
+        <ActivityIndicator size="large" color={selectedBackground.accent} />
+        <Text style={[s.centerText, { color: selectedBackground.muted }]}>
+          Loading template...
+        </Text>
       </View>
     );
   }
 
   if (!skill) {
     return (
-      <View style={s.center}>
-        <Text style={s.errorTitle}>Skill not found</Text>
-        <Pressable style={s.primaryButton} onPress={() => router.back()}>
+      <View style={[s.center, { backgroundColor: selectedBackground.pageBg }]}>
+        <Text style={[s.errorTitle, { color: selectedBackground.text }]}>
+          Skill not found
+        </Text>
+        <Pressable
+          style={[s.primaryButton, { backgroundColor: selectedBackground.accent }]}
+          onPress={() => router.back()}
+        >
           <Text style={s.primaryText}>Go Back</Text>
         </Pressable>
       </View>
@@ -375,7 +459,10 @@ export default function VisualTemplateBuilder() {
   }
 
   return (
-    <ScrollView style={s.page} contentContainerStyle={s.content}>
+    <ScrollView
+      style={[s.page, { backgroundColor: selectedBackground.pageBg }]}
+      contentContainerStyle={s.content}
+    >
       <View style={s.header}>
         <Pressable onPress={() => router.back()}>
           <Ionicons name="chevron-back" size={28} color="#17213A" />
@@ -384,18 +471,82 @@ export default function VisualTemplateBuilder() {
         <View style={{ width: 28 }} />
       </View>
 
-      <View style={s.privacyCard}>
-        <Ionicons name="shield-checkmark-outline" size={24} color="#2F7D51" />
+      <View
+        style={[
+          s.privacyCard,
+          {
+            backgroundColor: selectedBackground.accentSoft,
+            borderColor: selectedBackground.border,
+          },
+        ]}
+      >
+        <Ionicons
+          name="shield-checkmark-outline"
+          size={24}
+          color={selectedBackground.accent}
+        />
         <View style={{ flex: 1 }}>
-          <Text style={s.privacyTitle}>Photos stay private</Text>
-          <Text style={s.privacyText}>
+          <Text style={[s.privacyTitle, { color: selectedBackground.text }]}>
+            Photos stay private
+          </Text>
+          <Text style={[s.privacyText, { color: selectedBackground.muted }]}>
             Photos you choose stay on this device. They are not uploaded to Firebase
             and are not sent to the AI assistant.
           </Text>
         </View>
       </View>
 
-      <Text style={s.sectionTitle}>Choose a template</Text>
+      <Text style={s.sectionTitle}>1. Choose a background</Text>
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        contentContainerStyle={s.themeRow}
+      >
+        {backgroundThemes.map((theme) => {
+          const selected = theme.id === backgroundId;
+          return (
+            <Pressable
+              key={theme.id}
+              onPress={() => setBackgroundId(theme.id)}
+              style={[
+                s.themeCard,
+                {
+                  backgroundColor: theme.pageBg,
+                  borderColor: selected ? theme.accent : theme.border,
+                },
+              ]}
+            >
+              <View
+                style={[
+                  s.themePreview,
+                  { backgroundColor: theme.cardBg, borderColor: theme.border },
+                ]}
+              >
+                <View
+                  style={[s.themePreviewCircle, { backgroundColor: theme.accentSoft }]}
+                />
+                <View
+                  style={[s.themePreviewBar, { backgroundColor: theme.border }]}
+                />
+                <View
+                  style={[
+                    s.themePreviewBar,
+                    { backgroundColor: theme.border, width: '68%' },
+                  ]}
+                />
+              </View>
+
+              <Ionicons name={theme.icon} size={22} color={theme.accent} />
+              <Text style={[s.themeTitle, { color: theme.text }]}>{theme.title}</Text>
+              <Text style={[s.themeSubtitle, { color: theme.muted }]}>
+                {theme.subtitle}
+              </Text>
+            </Pressable>
+          );
+        })}
+      </ScrollView>
+
+      <Text style={s.sectionTitle}>2. Choose a layout</Text>
       <ScrollView
         horizontal
         showsHorizontalScrollIndicator={false}
@@ -407,15 +558,28 @@ export default function VisualTemplateBuilder() {
             <Pressable
               key={template.id}
               onPress={() => setTemplateId(template.id)}
-              style={[s.templateCard, selected && s.templateSelected]}
+              style={[
+                s.templateCard,
+                {
+                  backgroundColor: selectedBackground.cardBg,
+                  borderColor: selected
+                    ? selectedBackground.accent
+                    : selectedBackground.border,
+                },
+                selected && { backgroundColor: selectedBackground.pageBg },
+              ]}
             >
               <Ionicons
                 name={template.icon}
                 size={28}
-                color={selected ? '#2F7D51' : '#718096'}
+                color={selected ? selectedBackground.accent : selectedBackground.muted}
               />
-              <Text style={s.templateTitle}>{template.title}</Text>
-              <Text style={s.templateSubtitle}>{template.subtitle}</Text>
+              <Text style={[s.templateTitle, { color: selectedBackground.text }]}>
+                {template.title}
+              </Text>
+              <Text style={[s.templateSubtitle, { color: selectedBackground.muted }]}>
+                {template.subtitle}
+              </Text>
             </Pressable>
           );
         })}
@@ -423,10 +587,14 @@ export default function VisualTemplateBuilder() {
 
       <View style={s.previewHeader}>
         <View>
-          <Text style={s.sectionTitle}>Preview</Text>
-          <Text style={s.previewHint}>{selectedTemplate.subtitle}</Text>
+          <Text style={s.sectionTitle}>3. Add photos and preview</Text>
+          <Text style={[s.previewHint, { color: selectedBackground.muted }]}>
+            {selectedTemplate.subtitle}
+          </Text>
         </View>
-        <Text style={s.stepCount}>{steps.length} steps</Text>
+        <Text style={[s.stepCount, { color: selectedBackground.accent }]}>
+          {steps.length} steps
+        </Text>
       </View>
 
       {steps.map((step, index) => {
@@ -436,11 +604,22 @@ export default function VisualTemplateBuilder() {
             key={`${index}-${step}`}
             style={[
               s.stepCard,
+              {
+                backgroundColor: selectedBackground.cardBg,
+                borderColor: selectedBackground.border,
+              },
               templateId === 'photo-top' && s.stepCardTop,
             ]}
           >
-            <View style={s.numberBubble}>
-              <Text style={s.numberText}>{index + 1}</Text>
+            <View
+              style={[
+                s.numberBubble,
+                { backgroundColor: selectedBackground.accentSoft },
+              ]}
+            >
+              <Text style={[s.numberText, { color: selectedBackground.accent }]}>
+                {index + 1}
+              </Text>
             </View>
 
             {templateId !== 'text-only' && (
@@ -462,21 +641,44 @@ export default function VisualTemplateBuilder() {
                   </>
                 ) : (
                   <Pressable
-                    style={s.photoPlaceholder}
+                    style={[
+                      s.photoPlaceholder,
+                      {
+                        backgroundColor: selectedBackground.placeholderBg,
+                        borderColor: selectedBackground.placeholderBorder,
+                      },
+                    ]}
                     onPress={() => choosePhoto(index)}
                   >
-                    <Ionicons name="image-outline" size={26} color="#6E8C78" />
-                    <Text style={s.photoPlaceholderText}>Add photo</Text>
+                    <Ionicons
+                      name="image-outline"
+                      size={26}
+                      color={selectedBackground.muted}
+                    />
+                    <Text
+                      style={[
+                        s.photoPlaceholderText,
+                        { color: selectedBackground.muted },
+                      ]}
+                    >
+                      Add photo
+                    </Text>
                   </Pressable>
                 )}
               </View>
             )}
 
             <View style={s.stepTextWrap}>
-              <Text style={s.stepText}>{step}</Text>
+              <Text style={[s.stepText, { color: selectedBackground.text }]}>
+                {step}
+              </Text>
               {templateId !== 'text-only' && photo?.uri && (
                 <Pressable onPress={() => choosePhoto(index)}>
-                  <Text style={s.changePhotoText}>Change photo</Text>
+                  <Text
+                    style={[s.changePhotoText, { color: selectedBackground.accent }]}
+                  >
+                    Change photo
+                  </Text>
                 </Pressable>
               )}
             </View>
@@ -486,7 +688,11 @@ export default function VisualTemplateBuilder() {
 
       <View style={s.actions}>
         <Pressable
-          style={[s.primaryButton, working && s.disabled]}
+          style={[
+            s.primaryButton,
+            { backgroundColor: selectedBackground.accent },
+            working && s.disabled,
+          ]}
           onPress={printTemplate}
           disabled={working}
         >
@@ -495,16 +701,29 @@ export default function VisualTemplateBuilder() {
         </Pressable>
 
         <Pressable
-          style={[s.secondaryButton, working && s.disabled]}
+          style={[
+            s.secondaryButton,
+            {
+              backgroundColor: selectedBackground.cardBg,
+              borderColor: selectedBackground.border,
+            },
+            working && s.disabled,
+          ]}
           onPress={shareTemplate}
           disabled={working}
         >
-          <Ionicons name="share-outline" size={20} color="#2F7D51" />
-          <Text style={s.secondaryText}>Share PDF</Text>
+          <Ionicons
+            name="share-outline"
+            size={20}
+            color={selectedBackground.accent}
+          />
+          <Text style={[s.secondaryText, { color: selectedBackground.accent }]}>
+            Share PDF
+          </Text>
         </Pressable>
       </View>
 
-      <Text style={s.localNote}>
+      <Text style={[s.localNote, { color: selectedBackground.muted }]}>
         Closing this screen clears the selected photos from the app session. No child
         photo data is written to Firestore or Firebase Storage.
       </Text>
@@ -513,8 +732,9 @@ export default function VisualTemplateBuilder() {
 }
 
 const s = StyleSheet.create({
-  page: { flex: 1, backgroundColor: '#F3FAF6' },
+  page: { flex: 1 },
   content: { paddingBottom: 46 },
+
   header: {
     paddingTop: 56,
     paddingHorizontal: 20,
@@ -524,57 +744,116 @@ const s = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
   },
-  headerTitle: { fontSize: 20, fontWeight: '800', color: '#17213A' },
+
+  headerTitle: {
+    fontSize: 20,
+    fontWeight: '800',
+    color: '#17213A',
+  },
+
   privacyCard: {
     margin: 16,
     padding: 16,
     borderRadius: 18,
-    backgroundColor: '#EAF7EF',
     borderWidth: 1,
-    borderColor: '#CCE7D5',
     flexDirection: 'row',
     gap: 12,
     alignItems: 'flex-start',
   },
-  privacyTitle: { fontSize: 15, fontWeight: '800', color: '#315C42' },
+
+  privacyTitle: {
+    fontSize: 15,
+    fontWeight: '800',
+  },
+
   privacyText: {
     marginTop: 4,
     fontSize: 13,
     lineHeight: 19,
-    color: '#5F6F64',
   },
+
   sectionTitle: {
     marginHorizontal: 18,
     fontSize: 19,
     fontWeight: '800',
     color: '#17213A',
   },
-  templateRow: { paddingHorizontal: 16, paddingVertical: 14, gap: 10 },
+
+  themeRow: {
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    gap: 10,
+  },
+
+  themeCard: {
+    width: 168,
+    minHeight: 150,
+    borderRadius: 18,
+    padding: 14,
+    borderWidth: 2,
+  },
+
+  themePreview: {
+    height: 56,
+    borderRadius: 12,
+    borderWidth: 1,
+    marginBottom: 10,
+    padding: 8,
+    justifyContent: 'center',
+  },
+
+  themePreviewCircle: {
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    marginBottom: 6,
+  },
+
+  themePreviewBar: {
+    height: 6,
+    borderRadius: 4,
+    width: '82%',
+    marginBottom: 5,
+  },
+
+  themeTitle: {
+    marginTop: 8,
+    fontSize: 15,
+    fontWeight: '800',
+  },
+
+  themeSubtitle: {
+    marginTop: 4,
+    fontSize: 12,
+    lineHeight: 17,
+  },
+
+  templateRow: {
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    gap: 10,
+  },
+
   templateCard: {
     width: 176,
     minHeight: 132,
     borderRadius: 18,
     padding: 14,
-    backgroundColor: '#FFFFFF',
     borderWidth: 2,
-    borderColor: '#E2E8E4',
   },
-  templateSelected: {
-    borderColor: '#45A66B',
-    backgroundColor: '#F1FAF4',
-  },
+
   templateTitle: {
     marginTop: 10,
     fontSize: 15,
     fontWeight: '800',
-    color: '#17213A',
   },
+
   templateSubtitle: {
     marginTop: 4,
     fontSize: 12,
     lineHeight: 17,
-    color: '#718096',
   },
+
   previewHeader: {
     marginTop: 8,
     marginBottom: 12,
@@ -583,43 +862,47 @@ const s = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'flex-end',
   },
+
   previewHint: {
     marginLeft: 18,
     marginTop: 4,
-    color: '#718096',
     fontSize: 12,
   },
+
   stepCount: {
     fontSize: 12,
     fontWeight: '800',
-    color: '#438A6A',
   },
+
   stepCard: {
     marginHorizontal: 16,
     marginBottom: 12,
     minHeight: 138,
     padding: 14,
     borderRadius: 20,
-    backgroundColor: '#FFFFFF',
     borderWidth: 1,
-    borderColor: '#DFEAE3',
     flexDirection: 'row',
     alignItems: 'center',
     gap: 12,
   },
+
   stepCardTop: {
     flexDirection: 'column',
     alignItems: 'stretch',
   },
+
   numberBubble: {
     width: 34,
     height: 34,
     borderRadius: 17,
-    backgroundColor: '#E3F3E9',
     alignItems: 'center',
     justifyContent: 'center',
   },
-  numberText: { fontWeight: '800', color: '#315C42' },
+
+  numberText: {
+    fontWeight: '800',
+  },
+
   photoWrap: {
     width: 112,
     height: 96,
@@ -627,26 +910,32 @@ const s = StyleSheet.create({
     overflow: 'hidden',
     position: 'relative',
   },
+
   photoWrapTop: {
     width: '100%',
     height: 210,
   },
-  photo: { width: '100%', height: '100%', resizeMode: 'cover' },
+
+  photo: {
+    width: '100%',
+    height: '100%',
+    resizeMode: 'cover',
+  },
+
   photoPlaceholder: {
     flex: 1,
     borderWidth: 1.5,
     borderStyle: 'dashed',
-    borderColor: '#AFC4B5',
-    backgroundColor: '#F5F9F6',
     alignItems: 'center',
     justifyContent: 'center',
   },
+
   photoPlaceholderText: {
     marginTop: 5,
     fontSize: 12,
     fontWeight: '700',
-    color: '#6E8C78',
   },
+
   removePhoto: {
     position: 'absolute',
     top: 6,
@@ -658,63 +947,85 @@ const s = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  stepTextWrap: { flex: 1 },
+
+  stepTextWrap: {
+    flex: 1,
+  },
+
   stepText: {
     fontSize: 18,
     lineHeight: 25,
     fontWeight: '700',
-    color: '#243247',
   },
+
   changePhotoText: {
     marginTop: 8,
     fontSize: 12,
     fontWeight: '800',
-    color: '#258DEB',
   },
+
   actions: {
     marginHorizontal: 16,
     marginTop: 8,
     gap: 10,
   },
+
   primaryButton: {
     minHeight: 54,
     borderRadius: 27,
-    backgroundColor: '#45A66B',
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     gap: 8,
     paddingHorizontal: 18,
   },
-  primaryText: { color: '#FFFFFF', fontWeight: '800', fontSize: 16 },
+
+  primaryText: {
+    color: '#FFFFFF',
+    fontWeight: '800',
+    fontSize: 16,
+  },
+
   secondaryButton: {
     minHeight: 52,
     borderRadius: 26,
-    backgroundColor: '#FFFFFF',
     borderWidth: 1,
-    borderColor: '#CFE2D5',
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     gap: 8,
   },
-  secondaryText: { color: '#2F7D51', fontWeight: '800', fontSize: 16 },
-  disabled: { opacity: 0.55 },
+
+  secondaryText: {
+    fontWeight: '800',
+    fontSize: 16,
+  },
+
+  disabled: {
+    opacity: 0.55,
+  },
+
   localNote: {
     marginHorizontal: 22,
     marginTop: 14,
     textAlign: 'center',
-    color: '#7D8A80',
     fontSize: 11,
     lineHeight: 16,
   },
+
   center: {
     flex: 1,
-    backgroundColor: '#F3FAF6',
     alignItems: 'center',
     justifyContent: 'center',
     padding: 28,
   },
-  centerText: { marginTop: 10, color: '#718096' },
-  errorTitle: { fontSize: 20, fontWeight: '800', color: '#17213A' },
+
+  centerText: {
+    marginTop: 10,
+  },
+
+  errorTitle: {
+    fontSize: 20,
+    fontWeight: '800',
+  },
 });
