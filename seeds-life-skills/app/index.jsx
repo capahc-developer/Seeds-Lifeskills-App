@@ -18,20 +18,11 @@ const cards = [
   {
     title: 'My Skills',
     subtitle:
-      'Practice built-in skills or create and customize your own.',
+      'Practice SEEDS skills, review steps, and adjust them for your child.',
     icon: 'apps-outline',
     tint: '#EEE9FF',
     color: '#7C5CE7',
     route: '/all-skills',
-  },
-  {
-    title: 'My Visuals',
-    subtitle:
-      'View personalized visual guides created for your child.',
-    icon: 'images-outline',
-    tint: '#F2EAFE',
-    color: '#7559E8',
-    route: '/my-visuals',
   },
   {
     title: 'Practice Log',
@@ -70,7 +61,7 @@ export default function HomeScreen() {
           <View style={styles.studentBannerText}>
             <Text style={styles.studentLabel}>STUDENT PROFILE</Text>
             <Text style={styles.studentName}>{loading ? 'Loading...' : profile.name || 'Add your child’s profile'}</Text>
-            <Text style={styles.studentHint}>Personalize skills and visual guides</Text>
+            <Text style={styles.studentHint}>Personalize support for your child</Text>
           </View>
           <Ionicons name="chevron-forward" size={20} color="#47749A" />
         </Pressable>
