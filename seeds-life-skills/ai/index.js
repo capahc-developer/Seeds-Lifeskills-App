@@ -378,6 +378,14 @@ exports.chatAssistant = onCall(
           : "";
 
       if (skillId) {
+        const independentSkillTitles = {
+          "morning-routine": "Morning Routine",
+          "zip-winter-coat": "Zip Up a Winter Coat",
+          "cook-eggs": "Cook Eggs",
+          "shop": "Shop",
+          "brushing-teeth": "Brush Teeth",
+        };
+
         const builtInSnapshot = await db
           .doc(`skills/${skillId}`)
           .get();
@@ -429,6 +437,10 @@ exports.chatAssistant = onCall(
             ]
               .filter(Boolean)
               .join("\n");
+          } else if (independentSkillTitles[skillId]) {
+            skillContext =
+              `Current skill: ${independentSkillTitles[skillId]}\n` +
+              "The parent may be asking for help identifying a missing micro-step.";
           }
         }
       }
@@ -454,12 +466,14 @@ exports.chatAssistant = onCall(
       });
 
       const response = await openai.responses.create({
-        model: "gpt-6-luna",
+        model: "gpt-5-mini",
         instructions: [
           "You are the SEEDS Independent Steps caregiver assistant.",
           "Help parents and caregivers teach practical life skills to children and teens.",
           "Be supportive, concrete, concise, and action-oriented.",
-          "Break tasks into small steps when helpful.",
+          "When a caregiver says the student is stuck, first identify the transition between the surrounding steps and suggest one or more very small observable actions that may be missing.",
+          "Break tasks into small physical or observable actions when helpful.",
+          "For each suggested micro-step, explain briefly what the caregiver should look for before moving on.",
           "Suggest visual supports, prompting, choices, repetition, reinforcement, and ways to reduce task difficulty when appropriate.",
           "Use the student's profile and current skill context only when relevant.",
           "Never diagnose a medical, psychological, developmental, or educational condition.",
