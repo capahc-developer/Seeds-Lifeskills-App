@@ -7,6 +7,7 @@ import {
   Text,
   View,
   useWindowDimensions,
+  Linking,
 } from 'react-native';
 import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -153,6 +154,20 @@ export default function GeneralStrategies() {
               caregivers. Read straight through, or use the table of contents to
               jump to the strategy you need.
             </Text>
+            <Pressable
+              accessibilityRole="link"
+              onPress={() =>
+                Linking.openURL('https://www.youtube.com/watch?v=VPt74UPW_HA')
+              }
+              style={s.videoLink}
+            >
+              <Ionicons name="play-circle-outline" size={22} color="#B42318" />
+              <View style={{ flex: 1 }}>
+                <Text style={s.videoLinkTitle}>General Strategies Video</Text>
+                <Text style={s.videoLinkText}>Watch on YouTube</Text>
+              </View>
+              <Ionicons name="open-outline" size={18} color="#718096" />
+            </Pressable>
           </View>
 
           {loading && (
@@ -439,6 +454,27 @@ const s = StyleSheet.create({
     lineHeight: 22,
     color: '#526173',
     marginTop: 7,
+  },
+  videoLink: {
+    marginTop: 14,
+    padding: 13,
+    borderRadius: 14,
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: '#DDEAF4',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  videoLinkTitle: {
+    fontSize: 14,
+    fontWeight: '800',
+    color: '#17213A',
+  },
+  videoLinkText: {
+    marginTop: 2,
+    fontSize: 12,
+    color: '#718096',
   },
   status: {
     padding: 40,
