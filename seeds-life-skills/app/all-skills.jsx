@@ -119,26 +119,8 @@ export default function YourSkills() {
       </View>
 
       <Text style={s.intro}>
-        Use the built-in skills or create your own. Each skill has a simple step list that can be adjusted for your child.
+        Choose a skill to review its steps and strategies. Each skill can be adjusted for your child.
       </Text>
-
-      <Pressable
-        accessibilityRole="button"
-        accessibilityLabel="Create a custom skill"
-        style={s.createButton}
-        onPress={() => router.push('/custom-skill-editor')}
-      >
-        <View style={s.createIcon}>
-          <Ionicons name="add" size={25} color="#FFFFFF" />
-        </View>
-        <View style={{ flex: 1 }}>
-          <Text style={s.createTitle}>Create Your Own Skill</Text>
-          <Text style={s.createSubtitle}>
-            Add a skill and customize its steps.
-          </Text>
-        </View>
-        <Ionicons name="chevron-forward" size={22} color="#FFFFFF" />
-      </Pressable>
 
       {loading && (
         <View style={s.statusContainer}>
