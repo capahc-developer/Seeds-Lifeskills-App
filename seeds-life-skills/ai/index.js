@@ -6,6 +6,7 @@ const { getAuth } = require("firebase-admin/auth");
 const { getStorage } = require("firebase-admin/storage");
 const {
   getFirestore,
+  FieldValue,
   FieldPath,
 } = require("firebase-admin/firestore");
 const OpenAI = require("openai");
@@ -146,6 +147,202 @@ exports.deleteAccountData = onCall(
           backendMessage: error?.message || "unknown error",
           backendCode: error?.code || null,
         }
+      );
+    }
+  }
+);
+
+
+const assistantSchemas = {
+  advice: {
+    type: "object",
+    properties: { answer: { type: "string" } },
+    required: ["answer"],
+    additionalProperties: false,
+  },
+};
+
+function cleanAssistantText(value, limit) {
+  return typeof value === "string"
+    ? value.trim().slice(0, limit)
+    : "";
+}
+
+exports.parentAssistant = onCall(
+  {
+    secrets: [openaiApiKey],
+    timeoutSeconds: 60,
+    memory: "256MiB",
+    maxInstances: 5,
+    invoker: "public",
+  },
+  async (request) => {
+    const uid = request.auth?.uid;
+
+    if (!uid) {
+      throw new HttpsError(
+        "unauthenticated",
+        "Sign in to use the assistant."
+      );
+    }
+
+    const mode = request.data?.mode;
+    const question =
+      typeof request.data?.question === "string"
+        ? request.data.question.trim()
+        : "";
+
+    if (
+      mode !== "advice" ||
+      question.length < 5 ||
+      question.length > 600
+    ) {
+      throw new HttpsError(
+        "invalid-argument",
+        "Enter a question of 5 to 600 characters."
+      );
+    }
+
+    const db = getFirestore();
+    const day = new Date().toISOString().slice(0, 10);
+    const usage = db.doc(`assistantUsage/${uid}_${day}`);
+
+    await db.runTransaction(async (transaction) => {
+      const snapshot = await transaction.get(usage);
+      const count = snapshot.exists
+        ? snapshot.get("count") || 0
+        : 0;
+
+      if (count >= 20) {
+        throw new HttpsError(
+          "resource-exhausted",
+          "Daily assistant limit reached. Try again tomorrow."
+        );
+      }
+
+      transaction.set(
+        usage,
+        {
+          count: count + 1,
+          updatedAt: FieldValue.serverTimestamp(),
+        },
+        { merge: true }
+      );
+    });
+
+    let context = "No student profile provided.";
+
+    if (request.data?.useProfile === true) {
+      const snapshot = await db
+        .doc(`studentProfiles/${uid}`)
+        .get();
+
+      const profile = snapshot.data() || {};
+
+      context = JSON.stringify({
+        age:
+          typeof profile.age === "number"
+            ? profile.age
+            : undefined,
+        strengths: cleanAssistantText(
+          profile.strengths,
+          300
+        ),
+        barriers: cleanAssistantText(
+          profile.barriers,
+          300
+        ),
+        interests: cleanAssistantText(
+          profile.interests,
+          300
+        ),
+      });
+    }
+
+    const instructions = [
+      "You are the SEEDS Independent Steps caregiver assistant.",
+      "Help parents and caregivers teach practical daily life skills.",
+      "When a child is stuck, focus on the transition where the difficulty happens and suggest tiny physical or observable micro-steps that may be missing.",
+      "Explain what the caregiver should watch for before moving to the next action.",
+      "Be supportive, practical, concise, and non-diagnostic.",
+      "Do not claim a technique is guaranteed.",
+      "Return JSON with one field named answer containing the advice.",
+    ].join("\n");
+
+    try {
+      const response = await fetch(
+        "https://api.openai.com/v1/responses",
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization:
+              `Bearer ${openaiApiKey.value()}`,
+          },
+          body: JSON.stringify({
+            model: "gpt-5-mini",
+            store: false,
+            max_output_tokens: 900,
+            reasoning: { effort: "low" },
+            instructions,
+            input:
+              `Student context: ${context}\nCaregiver request: ${question}`,
+            text: {
+              format: {
+                type: "json_schema",
+                name: "parent_advice",
+                strict: true,
+                schema: assistantSchemas.advice,
+              },
+            },
+          }),
+          signal: AbortSignal.timeout(45000),
+        }
+      );
+
+      if (!response.ok) {
+        const bodyText = await response.text();
+        console.error(
+          "OpenAI response error:",
+          response.status,
+          bodyText
+        );
+        throw new Error(
+          `Model HTTP ${response.status}`
+        );
+      }
+
+      const body = await response.json();
+      const output = body.output
+        ?.flatMap((item) => item.content || [])
+        .find(
+          (part) => part.type === "output_text"
+        )?.text;
+
+      const parsed = JSON.parse(output);
+      const answer = cleanAssistantText(
+        parsed?.answer,
+        2400
+      );
+
+      if (!answer) {
+        throw new Error("Empty advice");
+      }
+
+      return { answer };
+    } catch (error) {
+      console.error(
+        "Parent assistant generation failed:",
+        error
+      );
+
+      if (error instanceof HttpsError) {
+        throw error;
+      }
+
+      throw new HttpsError(
+        "unavailable",
+        "The assistant is unavailable. Please try again later."
       );
     }
   }
