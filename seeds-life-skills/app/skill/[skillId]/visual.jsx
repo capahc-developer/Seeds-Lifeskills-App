@@ -130,6 +130,7 @@ function photoDataUri(photo) {
 function titleFromFileName(fileName) {
   return String(fileName || '')
     .replace(/\.[^.]+$/, '')
+    .replace(/^\d+[\s_-]*/, '')
     .replace(/[-_]+/g, ' ')
     .replace(/\b\w/g, (letter) => letter.toUpperCase());
 }
@@ -224,7 +225,9 @@ export default function VisualTemplateBuilder() {
 
         const folder = storageRef(storage, 'visual-template-backgrounds');
         const result = await listAll(folder);
-        const imageItems = result.items.filter((item) => isImageFile(item.name));
+        const imageItems = result.items
+          .filter((item) => isImageFile(item.name))
+          .sort((a, b) => a.name.localeCompare(b.name));
 
         const loaded = await Promise.all(
           imageItems.map(async (item, index) => {
