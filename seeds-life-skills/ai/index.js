@@ -1,602 +1,202 @@
-
 const { onCall, HttpsError } = require('firebase-functions/v2/https');
 const { defineSecret } = require('firebase-functions/params');
 const admin = require('firebase-admin');
 const OpenAI = require('openai');
-const { toFile } = require('openai');
-const { Buffer } = require('buffer');
-const sharp = require('sharp');
 
-if (!admin.apps.length) admin.initializeApp();
+if (!admin.apps.length) {
+  admin.initializeApp();
+}
 
 const db = admin.firestore();
-const bucket = admin.storage().bucket();
 const OPENAI_API_KEY = defineSecret('OPENAI_API_KEY');
 
-const PAGE_SIZE = 4;
-const MAX_STEPS = 18;
-
-function imageBytes(response, pageNumber) {
-  const item = response.data?.[0];
-
-  if (!item?.b64_json) {
-    throw new Error(`No image returned for page ${pageNumber}`);
-  }
-
-  return Buffer.from(item.b64_json, 'base64');
-}
-
-function xmlEscape(value) {
-  return String(value)
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&apos;');
-}
-
-function wrapText(text, maxChars) {
-  const words = String(text).split(/\s+/);
-  const lines = [];
-  let line = '';
-
-  for (const word of words) {
-    if ((line + ' ' + word).trim().length > maxChars && line) {
-      lines.push(line);
-      line = word;
-    } else {
-      line = (line + ' ' + word).trim();
-    }
-  }
-
-  if (line) lines.push(line);
-
-  return lines;
-}
-
-// Assemble AI illustrations with exact Firebase captions.
-async function composePoster(rawBuffer, page) {
-  const count = page.steps.length;
-  const tile = 480;
-  const margin = 20;
-  const gap = 24;
-  const captionHeight = 90;
-  const rowHeight = tile + captionHeight;
-  const rows = Math.ceil(count / 2);
-
-  const width = margin * 2 + tile * 2 + gap;
-  const height =
-    margin * 2 +
-    rows * rowHeight +
-    (rows - 1) * gap;
-
-  const metadata = await sharp(rawBuffer).metadata();
-  const sourceWidth = metadata.width;
-  const sourceHeight = metadata.height;
-
-  if (!sourceWidth || !sourceHeight) {
-    throw new Error('Image dimensions missing');
-  }
-
-  const sourceColumns = count === 1 ? 1 : 2;
-  const sourceRows = count === 1 ? 1 : 2;
-
-  const composites = [];
-
-  let svg = `
-    <svg xmlns="http://www.w3.org/2000/svg"
-         width="${width}" height="${height}">
-      <rect width="100%" height="100%" fill="#ffffff"/>
-  `;
-
-  for (let j = 0; j < count; j++) {
-    const col = j % 2;
-    const row = Math.floor(j / 2);
-
-    const left = margin + col * (tile + gap);
-    const top = margin + row * (rowHeight + gap);
-
-    // Extract the corresponding AI-generated quadrant.
-    const sourceCol = j % sourceColumns;
-    const sourceRow = Math.floor(j / sourceColumns);
-
-    const sx = Math.floor(
-      sourceCol * sourceWidth / sourceColumns
-    );
-
-    const sy = Math.floor(
-      sourceRow * sourceHeight / sourceRows
-    );
-
-    const sw = Math.floor(
-      (sourceCol + 1) * sourceWidth / sourceColumns
-    ) - sx;
-
-    const sh = Math.floor(
-      (sourceRow + 1) * sourceHeight / sourceRows
-    ) - sy;
-
-    const crop = await sharp(rawBuffer)
-      .extract({
-        left: sx,
-        top: sy,
-        width: sw,
-        height: sh,
-      })
-      .resize(tile, tile, { fit: 'cover' })
-      .png()
-      .toBuffer();
-
-    composites.push({
-      input: crop,
-      left,
-      top,
-    });
-
-    svg += `
-      <rect
-        x="${left}"
-        y="${top}"
-        width="${tile}"
-        height="${rowHeight}"
-        rx="12"
-        fill="#ffffff"
-        stroke="#d4dbe3"
-        stroke-width="2"
-      />
-    `;
-
-    // This text comes directly from the submitted steps.
-    const label = `${page.start + j + 1}. ${page.steps[j]}`;
-    const lines = wrapText(label, 37);
-
-    const fontSize = lines.length > 7 ? 18 : 22;
-    const lineHeight = lines.length > 7 ? 22 : 29;
-    const textY = top + tile + 38;
-
-    svg += `
-      <text
-        x="${left + 16}"
-        y="${textY}"
-        fill="#202b37"
-        font-family="Arial, sans-serif"
-        font-size="${fontSize}"
-        font-weight="600"
-      >
-    `;
-
-    lines.forEach((line, index) => {
-      svg += `
-        <tspan
-          x="${left + 16}"
-          dy="${index === 0 ? 0 : lineHeight}"
-        >${xmlEscape(line)}</tspan>
-      `;
-    });
-
-    svg += '</text>';
-  }
-
-  svg += '</svg>';
-
-  return sharp({
-    create: {
-      width,
-      height,
-      channels: 4,
-      background: '#ffffff',
-    },
-  })
-    .composite([
-      { input: Buffer.from(svg), left: 0, top: 0 },
-      ...composites,
-    ])
-    .png()
-    .toBuffer();
-}
-
-exports.generateVisualPlan = onCall(
+exports.chatAssistant = onCall(
   {
     region: 'us-central1',
     secrets: [OPENAI_API_KEY],
-    timeoutSeconds: 540,
-    memory: '1GiB',
+    timeoutSeconds: 60,
+    memory: '256MiB',
+    invoker: 'public',
   },
   async (request) => {
-    if (!request.auth) {
+    const uid = request.auth?.uid;
+
+    if (!uid) {
       throw new HttpsError(
         'unauthenticated',
-        'You must be signed in.'
+        'You must be signed in to use the assistant.'
       );
     }
 
-    const uid = request.auth.uid;
     const data = request.data || {};
-
-    const skillId =
-      typeof data.skillId === 'string'
-        ? data.skillId.trim()
+    const screenPath =
+      typeof data.screenPath === 'string'
+        ? data.screenPath.slice(0, 200)
         : '';
 
-    const safeSkillId =
-      skillId.replace(/[^a-zA-Z0-9_-]/g, '_') ||
-      'unknown-skill';
+    const params =
+      data.params && typeof data.params === 'object'
+        ? data.params
+        : {};
 
-    const skill =
-      typeof data.skill === 'string'
-        ? data.skill.slice(0, 150)
-        : 'Life Skill';
-
-    const strengths =
-      typeof data.strengths === 'string'
-        ? data.strengths.slice(0, 500)
-        : '';
-
-    const barriers =
-      typeof data.barriers === 'string'
-        ? data.barriers.slice(0, 500)
-        : '';
-
-    const interests =
-      typeof data.interests === 'string'
-        ? data.interests.slice(0, 500)
-        : '';
-
-    const gender = [
-      'girl',
-      'boy',
-      'not-specified',
-    ].includes(data.gender)
-      ? data.gender
-      : 'not-specified';
-
-    const steps = Array.isArray(data.steps)
-      ? data.steps
+    const messages = Array.isArray(data.messages)
+      ? data.messages
           .filter(
-            (s) =>
-              typeof s === 'string' &&
-              s.trim()
+            (item) =>
+              item &&
+              (item.role === 'user' || item.role === 'assistant') &&
+              typeof item.content === 'string'
           )
-          .map((s) => s.trim().slice(0, 300))
+          .slice(-10)
+          .map((item) => ({
+            role: item.role,
+            content: item.content.slice(0, 3000),
+          }))
       : [];
 
-    if (!steps.length || steps.length > MAX_STEPS) {
+    const lastUserMessage = [...messages]
+      .reverse()
+      .find((item) => item.role === 'user');
+
+    if (!lastUserMessage?.content?.trim()) {
       throw new HttpsError(
         'invalid-argument',
-        `Provide 1–${MAX_STEPS} steps.`
+        'Please enter a message.'
       );
     }
-
-    // Four steps per page.
-    const pages = [];
-
-    for (
-      let start = 0;
-      start < steps.length;
-      start += PAGE_SIZE
-    ) {
-      pages.push({
-        start,
-        steps: steps.slice(start, start + PAGE_SIZE),
-      });
-    }
-
-    const openai = new OpenAI({
-      apiKey: OPENAI_API_KEY.value(),
-      timeout: 150000,
-      maxRetries: 0,
-    });
-
-    const visualRef = db
-      .collection('generatedVisuals')
-      .doc();
-
-    const createdPaths = [];
-    const results = [];
-
-    // First page becomes the character reference.
-    let referenceBuffer = null;
 
     try {
-      for (let i = 0; i < pages.length; i++) {
-        const page = pages[i];
+      const profileSnapshot = await db
+        .doc(`studentProfiles/${uid}`)
+        .get();
 
-        const stepLines = page.steps
-          .map(
-            (step, j) =>
-              `${page.start + j + 1}. ${step}`
-          )
-          .join('\n');
+      const profile = profileSnapshot.exists
+        ? profileSnapshot.data()
+        : {};
 
-        const single = page.steps.length === 1;
+      const skillId =
+        typeof params.skillId === 'string'
+          ? params.skillId.slice(0, 120)
+          : '';
 
-        const layout = single
-          ? `
-Exactly ONE square illustration.
-One scene.
-One action.
-No panels or collage.
-`
-          : `
-Create EXACTLY ${page.steps.length} separate square scenes
-in a STRICT 2x2 GRID.
+      let skillContext = '';
 
-If fewer than four actions are provided,
-leave unused quadrants completely blank white.
+      if (skillId) {
+        const skillSnapshot = await db
+          .doc(`skills/${skillId}`)
+          .get();
 
-Divide the canvas at the exact horizontal
-and vertical midpoint.
+        if (skillSnapshot.exists) {
+          const skill = skillSnapshot.data();
 
-Positions:
-TOP LEFT: first action.
-TOP RIGHT: second action.
-BOTTOM LEFT: third action.
-BOTTOM RIGHT: fourth action.
+          const customizationSnapshot = await db
+            .doc(
+              `users/${uid}/skillCustomizations/${skillId}`
+            )
+            .get();
 
-All quadrants must have identical size.
+          const steps =
+            customizationSnapshot.exists &&
+            Array.isArray(customizationSnapshot.data().steps)
+              ? customizationSnapshot.data().steps
+              : Array.isArray(skill.steps)
+                ? skill.steps
+                : [];
 
-No headings, captions, margins, or gutters.
-Each illustration fills its own quadrant.
-No extra panels.
-`;
-
-        const referenceInstructions = referenceBuffer
-          ? `
-The attached image is PAGE 1 of this same routine.
-
-Use it ONLY as a character and artistic style reference.
-
-Preserve:
-- Same child's facial features.
-- Same skin tone.
-- Same hair color and hairstyle.
-- Same illustration line weight.
-- Same shading and color palette.
-- Same overall art style.
-
-Clothing may change only when an action requires it.
-
-Do not repeat the reference image's activities.
-
-Draw ONLY the new actions listed below.
-`
-          : `
-Establish one distinctive, friendly cartoon child.
-
-Gender: ${gender}.
-
-Use a consistent flat 2D educational illustration style.
-
-Keep the same child throughout the entire page.
-
-Use simple backgrounds and recognizable objects.
-`;
-
-        const prompt = `
-${referenceInstructions}
-
-Create a children's visual routine for:
-
-"${skill}"
-
-ACTIONS TO DRAW IN EXACT ORDER:
-
-${stepLines}
-
-LAYOUT:
-
-${layout}
-
-Show the child ACTIVELY PERFORMING each action,
-not simply posing after the action is completed.
-
-Examples:
-- Get dressed: show the child pulling on a shirt or pants.
-- Brush hair: show a hairbrush touching the hair.
-- Put on shoes: show the child putting a foot into a shoe.
-- Wash face: show the child washing their face with water.
-
-Every illustration must clearly communicate the action
-without needing to read its caption.
-
-Do not substitute a different activity.
-
-No duplicated actions.
-No invented activities.
-No extra people.
-No extra panels.
-
-Keep the character visually consistent.
-
-Use:
-- Friendly educational illustrations.
-- Simple uncluttered backgrounds.
-- High contrast.
-- Clear recognizable actions.
-- Consistent character proportions.
-
-TEXT RULES:
-Do not draw any text.
-No titles.
-No captions.
-No labels.
-No numbers.
-No letters.
-
-The application will add the exact step descriptions.
-
-PERSONALIZATION:
-Strengths: ${strengths}
-Barriers: ${barriers}
-Interests: ${interests}
-
-Use personalization only where relevant.
-The requested action always takes priority.
-`.trim();
-
-        console.log(
-          `Starting page ${i + 1}/${pages.length}`,
-          {
-            totalSteps: steps.length,
-            pageSteps: page.steps.length,
-            referenceUsed: Boolean(referenceBuffer),
-          }
-        );
-
-        let response;
-
-        if (referenceBuffer) {
-          response = await openai.images.edit({
-            model: 'gpt-image-1',
-            image: await toFile(
-              referenceBuffer,
-              'reference-page-1.png',
-              { type: 'image/png' }
-            ),
-            prompt,
-            size: '1024x1024',
-            quality: 'medium',
-            input_fidelity: 'high',
-          });
-        } else {
-          response = await openai.images.generate({
-            model: 'gpt-image-1',
-            prompt,
-            size: '1024x1024',
-            quality: 'medium',
-          });
+          skillContext = [
+            `Current skill: ${skill.title || skillId}`,
+            skill.subtitle
+              ? `Skill summary: ${skill.subtitle}`
+              : '',
+            skill.description
+              ? `Description: ${skill.description}`
+              : '',
+            steps.length
+              ? `Current steps: ${steps.join(' | ')}`
+              : '',
+          ]
+            .filter(Boolean)
+            .join('\n');
         }
-
-        const imageBuffer = imageBytes(
-          response,
-          i + 1
-        );
-
-        // Always use the first page as the reference.
-        if (i === 0) {
-          referenceBuffer = imageBuffer;
-        }
-
-        // Add exact step text below the illustrations.
-        const posterBuffer = await composePoster(
-          imageBuffer,
-          page
-        );
-
-        const storagePath =
-          `visual-posters/${uid}/` +
-          `${safeSkillId}/${visualRef.id}/` +
-          `page-${i + 1}.png`;
-
-        const file = bucket.file(storagePath);
-
-        await file.save(posterBuffer, {
-          resumable: false,
-          metadata: {
-            contentType: 'image/png',
-          },
-        });
-
-        createdPaths.push(storagePath);
-
-        const [url] = await file.getSignedUrl({
-          action: 'read',
-          expires: '03-01-2035',
-        });
-
-        results.push({
-          pageNumber: i + 1,
-          posterUrl: url,
-          storagePath,
-          steps: page.steps,
-          startStep: page.start + 1,
-          endStep:
-            page.start + page.steps.length,
-        });
-
-        console.log(
-          `Saved page ${i + 1}/${pages.length}`
-        );
       }
 
-      const createdAt =
-        admin.firestore.FieldValue.serverTimestamp();
+      const studentContext = [
+        profile.name
+          ? `Student name/nickname: ${profile.name}`
+          : '',
+        profile.age != null
+          ? `Age: ${profile.age}`
+          : '',
+        profile.strengths
+          ? `Strengths: ${profile.strengths}`
+          : '',
+        profile.barriers
+          ? `Learning barriers: ${profile.barriers}`
+          : '',
+        profile.interests
+          ? `Interests: ${profile.interests}`
+          : '',
+      ]
+        .filter(Boolean)
+        .join('\n');
 
-      const common = {
-        userId: uid,
+      const openai = new OpenAI({
+        apiKey: OPENAI_API_KEY.value(),
+      });
 
-        // Signed-in account ID, not necessarily student ID.
-        studentId: uid,
+      const response = await openai.responses.create({
+        model: 'gpt-5-mini',
+        instructions: [
+          'You are the SEEDS Independent Steps caregiver assistant.',
+          'Help parents and caregivers teach practical life skills to children and teens.',
+          'Your main job is to troubleshoot where a student gets stuck and identify very small missing steps that may have been skipped.',
+          'Be supportive, concrete, concise, and action-oriented.',
+          'Break tasks into small observable steps when useful.',
+          'Suggest visual supports, prompting, choices, repetition, reinforcement, and ways to reduce task difficulty when appropriate.',
+          'Use the student profile and current skill context only when relevant.',
+          'Never diagnose a medical, psychological, developmental, or educational condition.',
+          'Do not present your answer as professional medical, therapeutic, legal, or emergency advice.',
+          'Do not shame the student or caregiver.',
+          'Prefer short paragraphs and numbered steps over long essays.',
+        ].join('\n'),
+        input: [
+          {
+            role: 'user',
+            content: [
+              screenPath
+                ? `Current app screen: ${screenPath}`
+                : '',
+              studentContext
+                ? `Student profile:\n${studentContext}`
+                : 'Student profile: not provided.',
+              skillContext
+                ? `Current skill context:\n${skillContext}`
+                : '',
+              'Conversation:',
+              ...messages.map(
+                (item) =>
+                  `${item.role === 'user' ? 'Caregiver' : 'Assistant'}: ${item.content}`
+              ),
+            ]
+              .filter(Boolean)
+              .join('\n\n'),
+          },
+        ],
+        max_output_tokens: 500,
+      });
 
-        skillId: safeSkillId,
-        skillTitle: skill,
+      const answer = response.output_text?.trim();
 
-        // Keep existing frontend compatibility.
-        posterUrl: results[0].posterUrl,
+      if (!answer) {
+        throw new Error('OpenAI returned an empty response.');
+      }
 
-        pages: results,
-        pageCount: results.length,
-
-        steps,
-        stepCount: steps.length,
-
-        strengths,
-        barriers,
-        interests,
-        gender,
-        createdAt,
-      };
-
-      const batch = db.batch();
-
-      batch.set(visualRef, common);
-
-      batch.set(
-        db
-          .collection('studentProfiles')
-          .doc(uid)
-          .collection('generatedVisuals')
-          .doc(visualRef.id),
-        {
-          visualId: visualRef.id,
-          skillId: safeSkillId,
-          skillTitle: skill,
-
-          posterUrl: results[0].posterUrl,
-
-          pages: results,
-          pageCount: results.length,
-
-          steps,
-          stepCount: steps.length,
-
-          gender,
-          createdAt,
-        }
-      );
-
-      await batch.commit();
-
-      return {
-        success: true,
-        posterUrl: results[0].posterUrl,
-        pages: results,
-        pageCount: results.length,
-        visualId: visualRef.id,
-        skillId: safeSkillId,
-        stepCount: steps.length,
-      };
+      return { answer };
     } catch (error) {
-      console.error(
-        'generateVisualPlan failed:',
-        error
-      );
-
-      await Promise.allSettled(
-        createdPaths.map((path) =>
-          bucket.file(path).delete()
-        )
-      );
+      console.error('Chat assistant error:', {
+        code: error?.code,
+        message: error?.message,
+      });
 
       if (error instanceof HttpsError) {
         throw error;
@@ -604,8 +204,120 @@ The requested action always takes priority.
 
       throw new HttpsError(
         'internal',
-        error?.message ||
-          'Unable to generate visual.'
+        'The assistant could not answer right now.'
+      );
+    }
+  }
+);
+
+exports.deleteAccountData = onCall(
+  {
+    region: 'us-central1',
+    timeoutSeconds: 120,
+    memory: '512MiB',
+    invoker: 'public',
+  },
+  async (request) => {
+    const uid = request.auth?.uid;
+
+    if (!uid) {
+      throw new HttpsError(
+        'unauthenticated',
+        'You must be signed in to delete your account.'
+      );
+    }
+
+    const authTime = Number(
+      request.auth?.token?.auth_time || 0
+    );
+
+    const nowSeconds = Math.floor(
+      Date.now() / 1000
+    );
+
+    if (
+      !authTime ||
+      nowSeconds - authTime > 10 * 60
+    ) {
+      throw new HttpsError(
+        'failed-precondition',
+        'Please sign in again before deleting your account.'
+      );
+    }
+
+    let stage = 'starting deletion';
+
+    try {
+      stage = 'deleting stored user files';
+
+      const projectId =
+        process.env.GCLOUD_PROJECT ||
+        process.env.GCP_PROJECT ||
+        'seeds-life-skills';
+
+      const bucketNames = [
+        `${projectId}.firebasestorage.app`,
+        `${projectId}.appspot.com`,
+      ];
+
+      for (const bucketName of bucketNames) {
+        try {
+          const bucket = admin
+            .storage()
+            .bucket(bucketName);
+
+          const [exists] = await bucket.exists();
+          if (!exists) continue;
+
+          await bucket.deleteFiles({
+            prefix: `visual-posters/${uid}/`,
+          });
+        } catch (storageError) {
+          console.warn(
+            `Skipping unavailable Storage bucket ${bucketName}:`,
+            storageError?.message || storageError
+          );
+        }
+      }
+
+      stage = 'deleting Firestore profile and user data';
+
+      await Promise.all([
+        db.recursiveDelete(
+          db.doc(`adultProfiles/${uid}`)
+        ),
+        db.recursiveDelete(
+          db.doc(`studentProfiles/${uid}`)
+        ),
+        db.recursiveDelete(
+          db.doc(`users/${uid}`)
+        ),
+      ]);
+
+      stage = 'deleting Firebase Authentication account';
+
+      await admin.auth().deleteUser(uid);
+
+      return { success: true };
+    } catch (error) {
+      console.error(
+        'Account deletion backend error:',
+        {
+          stage,
+          code: error?.code,
+          message: error?.message,
+        }
+      );
+
+      throw new HttpsError(
+        'failed-precondition',
+        `Account deletion failed while ${stage}.`,
+        {
+          stage,
+          backendMessage:
+            error?.message || 'unknown error',
+          backendCode: error?.code || null,
+        }
       );
     }
   }
