@@ -13,6 +13,11 @@ service cloud.firestore {
       allow read, write: if signedInAs(uid);
     }
 
+    // Garden state is private to the signed-in user.
+    match /users/{uid}/garden/{gardenId} {
+      allow read, write: if signedInAs(uid) && gardenId == 'state';
+    }
+
     match /users/{uid}/practiceLog/{entryId} {
       allow read, write: if signedInAs(uid);
     }
