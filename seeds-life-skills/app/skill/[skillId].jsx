@@ -13,6 +13,7 @@ import { useEffect, useState } from 'react';
 import { doc, getDoc } from 'firebase/firestore';
 
 import { auth, db } from '../../lib/firebase';
+import { findIndependentStepsSkill } from '../../data/independentStepsSkills';
 
 const genericSteps = [
   'Get ready and gather what you need.',
@@ -39,15 +40,23 @@ export default function Skill() {
         const skillRef = doc(db, 'skills', String(skillId));
         const skillSnap = await getDoc(skillRef);
 
-        if (!skillSnap.exists()) {
+        const fallbackSkill = findIndependentStepsSkill(skillId);
+
+        if (!skillSnap.exists() && !fallbackSkill) {
           setError(true);
           return;
         }
 
-        const loadedSkill = {
-          id: skillSnap.id,
-          ...skillSnap.data(),
-        };
+        const loadedSkill = skillSnap.exists()
+          ? {
+              ...fallbackSkill,
+              id: skillSnap.id,
+              ...skillSnap.data(),
+              videoUrl: skillSnap.data().videoUrl || fallbackSkill?.videoUrl,
+              resourceUrl:
+                skillSnap.data().resourceUrl || fallbackSkill?.resourceUrl,
+            }
+          : fallbackSkill;
 
         setSkill(loadedSkill);
 
@@ -154,14 +163,35 @@ export default function Skill() {
       <Pressable
         accessibilityRole="link"
         style={s.resourceCard}
-        onPress={() => Linking.openURL('https://www.capa-hc.org/seeds-2/')}
+        onPress={() =>
+          Linking.openURL(
+            skill.videoUrl || skill.resourceUrl || 'https://www.capa-hc.org/seeds-2/'
+          )
+        }
       >
         <View style={s.resourceIcon}>
           <Ionicons name="play-circle-outline" size={24} color="#248A6B" />
         </View>
         <View style={{ flex: 1 }}>
-          <Text style={s.resourceTitle}>SEEDS Skill Video</Text>
-          <Text style={s.resourceText}>Open the SEEDS video and resources page</Text>
+          <Text style={s.resourceTitle}>{skill.title} Video</Text>
+          <Text style={s.resourceText}>Watch this Independent Steps episode</Text>
+        </View>
+        <Ionicons name="open-outline" size={19} color="#718096" />
+      </Pressable>
+
+      <Pressable
+        accessibilityRole="link"
+        style={s.resourceCard}
+        onPress={() =>
+          Linking.openURL(skill.resourceUrl || 'https://www.capa-hc.org/seeds-2/')
+        }
+      >
+        <View style={s.resourceIcon}>
+          <Ionicons name="link-outline" size={22} color="#248A6B" />
+        </View>
+        <View style={{ flex: 1 }}>
+          <Text style={s.resourceTitle}>SEEDS Resources</Text>
+          <Text style={s.resourceText}>Open the full Independent Steps series</Text>
         </View>
         <Ionicons name="open-outline" size={19} color="#718096" />
       </Pressable>
