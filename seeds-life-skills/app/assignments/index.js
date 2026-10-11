@@ -165,7 +165,7 @@ export default function PracticeLogScreen() {
             <Text style={{ fontSize: 48 }}>🌱</Text>
             <Text style={{ fontSize: 20, fontWeight: '800', color: '#467548' }}>+1 seed in your garden!</Text>
           </View>
-          <Pressable style={[styles.saveButton, { width: '100%', paddingHorizontal: 20 }]} onPress={() => router.push('/reports')}><Text style={styles.saveButtonText}>View Your Garden</Text></Pressable>
+          <Pressable style={[styles.saveButton, { width: '100%', paddingHorizontal: 20 }]} onPress={() => router.push('/garden')}><Text style={styles.saveButtonText}>View Your Garden</Text></Pressable>
           <Pressable onPress={() => setCelebrating(false)} style={{ padding: 18 }}><Text style={{ fontSize: 16, color: '#347D55', fontWeight: '700' }}>Log Another Practice</Text></Pressable>
         </ScrollView>
       </ScreenContainer>
