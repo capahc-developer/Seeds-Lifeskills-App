@@ -5,6 +5,7 @@ import { router, useFocusEffect } from 'expo-router';
 import { doc, getDoc, getDocs, orderBy, query, runTransaction } from 'firebase/firestore';
 import { auth, db } from '../lib/firebase';
 import { practiceLogsForCurrentUser } from '../lib/userData';
+import { GardenBackdrop, IllustratedPlant } from '../components/GardenIllustration';
 
 const STAGES = [
   { emoji: '🫘', name: 'Seed' },
@@ -116,8 +117,7 @@ export default function GardenScreen() {
           </View>
           {!!error && <Text style={s.error}>{error}</Text>}
           {!!message && <Text style={s.success}>{message}</Text>}
-          <View style={s.garden}>
-            <Text style={s.sun}>☀️    🦋    ☁️</Text>
+          <GardenBackdrop>
             {plants.length ? (
               <View style={s.plantGrid}>
                 {plants.map((plant, i) => {
@@ -127,19 +127,18 @@ export default function GardenScreen() {
                     <Pressable key={plant.id} accessibilityRole="button"
                       accessibilityLabel={`Plant ${i + 1}, ${stage.name}. ${canWater ? 'Tap to water' : 'Cannot water now'}`}
                       disabled={!canWater} onPress={() => changeGarden('water', plant.id)}
-                      style={[s.plant, canWater && s.waterable]}>
-                      <Text style={s.plantEmoji}>{stage.emoji}</Text>
+                      style={[s.illustratedPot, canWater && s.waterable]}>
+                      <IllustratedPlant stage={plant.stage} index={i} />
                       <Text style={s.plantLabel}>{stage.name}</Text>
-                      {canWater && <Text style={s.waterHint}>💧 Water</Text>}
+                      {canWater && <Text style={s.waterHint}>💧 Water me</Text>}
                       {plant.stage >= 3 && <Text style={s.grown}>Fully grown!</Text>}
                     </Pressable>
                   );
                 })}
               </View>
             ) : <Text style={s.empty}>Your garden is waiting for its first seed.</Text>}
-            <Text style={s.ground}>━━━━━━━━━━━━━━━━━━</Text>
             <Text style={s.note}>{plants.length} planted · {logsCount} practices logged</Text>
-          </View>
+          </GardenBackdrop>
           <Pressable disabled={working || seedsAvailable < 1}
             style={[s.button, (working || seedsAvailable < 1) && s.disabled]}
             onPress={() => changeGarden('plant')}>
@@ -169,16 +168,17 @@ const s = StyleSheet.create({
   balanceLabel: { fontSize: 13, color: '#607D66', marginTop: 5 },
   garden: { backgroundColor: '#E0F3DE', borderRadius: 28, padding: 18, alignItems: 'center', minHeight: 240 },
   sun: { fontSize: 30, marginBottom: 16 },
-  plantGrid: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'center', gap: 10 },
+  plantGrid: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'center', columnGap: 6, rowGap: 18 },
+  illustratedPot: { alignItems: 'center', width: 98, paddingBottom: 7, borderRadius: 12, borderWidth: 2, borderColor: 'transparent', backgroundColor: 'rgba(255,255,255,0.12)' },
   plant: { minWidth: 90, backgroundColor: '#F8FFF6', borderRadius: 16, padding: 12, alignItems: 'center', borderWidth: 2, borderColor: 'transparent' },
-  waterable: { borderColor: '#8BC6B4' },
+  waterable: { borderColor: '#FFF5B8' },
   plantEmoji: { fontSize: 40 },
-  plantLabel: { color: '#3C7250', fontWeight: '700', marginTop: 5 },
+  plantLabel: { color: '#285D35', fontWeight: '800', marginTop: 5, backgroundColor: '#FFF6D8', paddingHorizontal: 9, borderRadius: 8 },
   waterHint: { color: '#267B99', fontSize: 12, fontWeight: '700', marginTop: 4 },
   grown: { color: '#6E8B62', fontSize: 11, marginTop: 4 },
   empty: { color: '#66806A', fontSize: 15, marginVertical: 24, textAlign: 'center' },
   ground: { fontSize: 17, color: '#8AB780', marginTop: 14 },
-  note: { color: '#5D7D64', fontSize: 14, textAlign: 'center', marginTop: 10 },
+  note: { color: '#285D35', fontSize: 14, textAlign: 'center', marginTop: 10, fontWeight: '700' },
   card: { backgroundColor: 'white', borderRadius: 20, padding: 20, marginTop: 20 },
   section: { fontSize: 19, fontWeight: '800', color: '#346C48' },
   body: { fontSize: 15, color: '#687C6B', lineHeight: 23, marginTop: 9 },
