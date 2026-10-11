@@ -239,7 +239,32 @@ export default function Skill() {
           </View>
         ))}
       </View>
+{/* Personalized Visual */}
+<Pressable
+  style={s.button}
+  onPress={() =>
+    router.push({
+      pathname: '/skill/[skillId]/visual',
+      params: { skillId: String(skill.id) },
+    })
+  }
+>
+  <Ionicons
+    name="images-outline"
+    size={20}
+    color="#FFF"
+  />
 
+  <Text style={s.buttonText}>
+    Generate Personalized Visual
+  </Text>
+
+  <Ionicons
+    name="arrow-forward"
+    size={20}
+    color="#FFF"
+  />
+</Pressable>
       {/* Strategies */}
       <Pressable
         style={s.button}
