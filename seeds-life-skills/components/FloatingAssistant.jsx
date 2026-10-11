@@ -74,9 +74,9 @@ export default function FloatingAssistant() {
     });
 
     try {
-      const chatAssistant = httpsCallable(
+      const parentAssistant = httpsCallable(
         functions,
-        'chatAssistant'
+        'parentAssistant'
       );
 
       const safeParams = Object.fromEntries(
@@ -88,10 +88,22 @@ export default function FloatingAssistant() {
         ])
       );
 
-      const result = await chatAssistant({
-        screenPath: pathname,
-        params: safeParams,
-        messages: nextMessages.slice(-10),
+      const conversation = nextMessages
+        .slice(-8)
+        .map(
+          (item) =>
+            `${item.role === 'user' ? 'Caregiver' : 'Assistant'}: ${item.content}`
+        )
+        .join('\n');
+
+      const contextLine = Object.keys(safeParams).length
+        ? `Current screen: ${pathname}. Route context: ${JSON.stringify(safeParams)}.\n`
+        : `Current screen: ${pathname}.\n`;
+
+      const result = await parentAssistant({
+        mode: 'advice',
+        question: `${contextLine}${conversation}`.slice(0, 600),
+        useProfile: true,
       });
 
       const answer =
