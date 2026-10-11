@@ -204,62 +204,83 @@ exports.parentAssistant = onCall(
     }
 
     const db = getFirestore();
-    const day = new Date().toISOString().slice(0, 10);
-    const usage = db.doc(`assistantUsage/${uid}_${day}`);
-
-    await db.runTransaction(async (transaction) => {
-      const snapshot = await transaction.get(usage);
-      const count = snapshot.exists
-        ? snapshot.get("count") || 0
-        : 0;
-
-      if (count >= 20) {
-        throw new HttpsError(
-          "resource-exhausted",
-          "Daily assistant limit reached. Try again tomorrow."
-        );
-      }
-
-      transaction.set(
-        usage,
-        {
-          count: count + 1,
-          updatedAt: FieldValue.serverTimestamp(),
-        },
-        { merge: true }
-      );
-    });
-
     let context = "No student profile provided.";
 
-    if (request.data?.useProfile === true) {
-      const snapshot = await db
-        .doc(`studentProfiles/${uid}`)
-        .get();
+    try {
+      const day = new Date().toISOString().slice(0, 10);
+      const usage = db.doc(`assistantUsage/${uid}_${day}`);
 
-      const profile = snapshot.data() || {};
+      try {
+        await db.runTransaction(async (transaction) => {
+          const snapshot = await transaction.get(usage);
+          const count = snapshot.exists
+            ? snapshot.get("count") || 0
+            : 0;
 
-      context = JSON.stringify({
-        age:
-          typeof profile.age === "number"
-            ? profile.age
-            : undefined,
-        strengths: cleanAssistantText(
-          profile.strengths,
-          300
-        ),
-        barriers: cleanAssistantText(
-          profile.barriers,
-          300
-        ),
-        interests: cleanAssistantText(
-          profile.interests,
-          300
-        ),
-      });
-    }
+          if (count >= 20) {
+            throw new HttpsError(
+              "resource-exhausted",
+              "Daily assistant limit reached. Try again tomorrow."
+            );
+          }
 
-    const instructions = [
+          transaction.set(
+            usage,
+            {
+              count: count + 1,
+              updatedAt: FieldValue.serverTimestamp(),
+            },
+            { merge: true }
+          );
+        });
+      } catch (usageError) {
+        if (usageError instanceof HttpsError) {
+          throw usageError;
+        }
+
+        // Usage tracking should never prevent a caregiver from getting help.
+        console.warn("Assistant usage tracking failed:", {
+          code: usageError?.code,
+          message: usageError?.message,
+        });
+      }
+
+      if (request.data?.useProfile === true) {
+        try {
+          const snapshot = await db
+            .doc(`studentProfiles/${uid}`)
+            .get();
+
+          const profile = snapshot.data() || {};
+
+          context = JSON.stringify({
+            age:
+              typeof profile.age === "number"
+                ? profile.age
+                : undefined,
+            strengths: cleanAssistantText(
+              profile.strengths,
+              300
+            ),
+            barriers: cleanAssistantText(
+              profile.barriers,
+              300
+            ),
+            interests: cleanAssistantText(
+              profile.interests,
+              300
+            ),
+          });
+        } catch (profileError) {
+          // The assistant can still work without profile personalization.
+          console.warn("Assistant profile lookup failed:", {
+            code: profileError?.code,
+            message: profileError?.message,
+          });
+        }
+      }
+
+      const instructions = [
       "You are the SEEDS Independent Steps caregiver assistant.",
       "Help parents and caregivers teach practical daily life skills.",
       "When a child is stuck, focus on the transition where the difficulty happens and suggest tiny physical or observable micro-steps that may be missing.",
@@ -269,7 +290,6 @@ exports.parentAssistant = onCall(
       "Return JSON with one field named answer containing the advice.",
     ].join("\n");
 
-    try {
       const response = await fetch(
         "https://api.openai.com/v1/responses",
         {
@@ -331,10 +351,11 @@ exports.parentAssistant = onCall(
 
       return { answer };
     } catch (error) {
-      console.error(
-        "Parent assistant generation failed:",
-        error
-      );
+      console.error("Parent assistant failed:", {
+        code: error?.code,
+        message: error?.message,
+        stack: error?.stack,
+      });
 
       if (error instanceof HttpsError) {
         throw error;
@@ -342,7 +363,11 @@ exports.parentAssistant = onCall(
 
       throw new HttpsError(
         "unavailable",
-        "The assistant is unavailable. Please try again later."
+        "The assistant is unavailable. Please try again later.",
+        {
+          backendCode: error?.code || null,
+          backendMessage: error?.message || "unknown error",
+        }
       );
     }
   }
