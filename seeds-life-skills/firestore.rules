@@ -31,11 +31,6 @@ service cloud.firestore {
       allow delete: if signedInAs(uid);
     }
 
-
-    match /users/{uid}/customSkills/{skillId} {
-      allow read, write: if signedInAs(uid);
-    }
-
     match /users/{uid}/skillCustomizations/{skillId} {
       allow read, write: if signedInAs(uid);
     }
