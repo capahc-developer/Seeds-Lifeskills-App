@@ -1,375 +1,506 @@
-import { useEffect, useState } from 'react';
+import { useState } from "react";
 import {
-  ActivityIndicator,
-  Pressable,
   ScrollView,
   StyleSheet,
   Text,
   View,
-} from 'react-native';
-import { router, useLocalSearchParams } from 'expo-router';
-import { Ionicons } from '@expo/vector-icons';
-import { doc, getDoc } from 'firebase/firestore';
+  Pressable,
+  ActivityIndicator,
+  Image,
+} from "react-native";
 
-import { db } from '../../../lib/firebase';
-import { ResourceList } from '../../../components/EmbeddedResourceCard';
+import {
+  router,
+  useLocalSearchParams,
+} from "expo-router";
 
-const seedsResource = {
-  title: 'SEEDS skill resources',
-  description: 'Open the SEEDS resource page for videos and supporting materials.',
-  url: 'https://www.capa-hc.org/seeds-2/',
-  type: 'link',
-};
+import { Ionicons } from "@expo/vector-icons";
 
-export default function SkillStrategies() {
+import { httpsCallable } from "firebase/functions";
+
+import { functions } from "../../../lib/firebase";
+import { findSkill } from "../../../data/skills";
+import { useStudentProfile } from "../../../context/StudentProfileContext";
+
+
+export default function Visual() {
+
   const { skillId } = useLocalSearchParams();
-  const resolvedSkillId = Array.isArray(skillId)
-    ? skillId[0]
-    : skillId;
 
-  const [skill, setSkill] = useState(null);
-  const [loading, setLoading] = useState(true);
+  const skill = findSkill(skillId);
 
-  useEffect(() => {
-    if (!resolvedSkillId) return;
+  const { profile } = useStudentProfile();
 
-    getDoc(
-      doc(
-        db,
-        'skills',
-        String(resolvedSkillId)
-      )
-    )
-      .then((snapshot) => {
-        if (snapshot.exists()) {
-          setSkill({
-            id: snapshot.id,
-            ...snapshot.data(),
-          });
-        }
-      })
-      .catch((error) => {
-        console.error(
-          'Error loading skill strategies:',
-          error
-        );
-      })
-      .finally(() => setLoading(false));
-  }, [resolvedSkillId]);
+  const [loading, setLoading] = useState(false);
+  const [posterUrl, setPosterUrl] = useState("");
+  const [error, setError] = useState("");
 
-  if (loading) {
-    return (
-      <View style={s.center}>
-        <ActivityIndicator size="large" />
-        <Text style={s.loadingText}>
-          Loading strategies...
-        </Text>
-      </View>
-    );
-  }
 
   if (!skill) {
-    return (
-      <View style={s.center}>
-        <Text style={s.emptyTitle}>
-          Skill not found
-        </Text>
-        <Pressable
-          style={s.primaryButton}
-          onPress={() => router.back()}
-        >
-          <Text style={s.primaryText}>
-            Go Back
-          </Text>
-        </Pressable>
-      </View>
-    );
+    return null;
   }
 
-  const strategies = Array.isArray(
-    skill.strategies
-  )
-    ? skill.strategies
-    : [];
 
-  const resources = [
-    ...(Array.isArray(skill.resources)
-      ? skill.resources
-      : []),
-    seedsResource,
-  ];
+  const missing =
+    !profile.strengths &&
+    !profile.barriers &&
+    !profile.interests;
+
+
+  // --------------------------------
+  // Generate AI Visual Poster
+  // --------------------------------
+
+  const handleGenerate = async () => {
+
+    try {
+
+      setLoading(true);
+      setError("");
+
+
+      const generateVisualPlan =
+        httpsCallable(
+          functions,
+          "generateVisualPlan"
+        );
+
+
+      const result =
+        await generateVisualPlan({
+
+          skill: skill.title,
+
+          strengths:
+            profile.strengths ||
+            "Not provided",
+
+          barriers:
+            profile.barriers ||
+            "Not provided",
+
+          interests:
+            profile.interests ||
+            "Not provided",
+
+        });
+
+
+      console.log(
+        "AI response:",
+        result.data
+      );
+
+
+      const url = result.data?.posterUrl;
+
+      if (!url) {
+        throw new Error(
+          "The AI function did not return a poster URL."
+        );
+      }
+
+
+      console.log(
+        "Poster URL:",
+        url
+      );
+
+
+      setPosterUrl(url);
+
+
+    } catch (err) {
+
+      console.error(
+        "Error generating visual:",
+        err
+      );
+
+      setError(
+        "We couldn't generate the visual. Please try again."
+      );
+
+
+    } finally {
+
+      setLoading(false);
+
+    }
+
+  };
+
+
+  // --------------------------------
+  // Screen
+  // --------------------------------
 
   return (
+
     <ScrollView
       style={s.page}
       contentContainerStyle={s.content}
     >
+
       <View style={s.header}>
+
         <Pressable
           onPress={() => router.back()}
         >
+
           <Ionicons
             name="chevron-back"
             size={28}
           />
+
         </Pressable>
 
-        <Text style={s.headerTitle}>
-          Strategies
+
+        <Text style={s.title}>
+          Step-by-Step Visual
         </Text>
+
 
         <View style={{ width: 28 }} />
+
       </View>
+
 
       <View style={s.hero}>
+
         <Ionicons
-          name="bulb-outline"
-          size={32}
-          color="#248A6B"
+          name="sparkles"
+          size={34}
+          color="#7559E8"
         />
 
+
         <View style={{ flex: 1 }}>
-          <Text style={s.title}>
-            {skill.title}
+
+          <Text style={s.heroTitle}>
+            Personalized Step-by-Step Visual
           </Text>
-          <Text style={s.subtitle}>
-            Practical ideas for supporting
-            this skill.
+
+
+          <Text style={s.intro}>
+            Create a personalized visual poster
+            for{" "}
+            {skill.title}.
           </Text>
+
         </View>
+
       </View>
 
-      <View style={s.card}>
-        <Text style={s.cardTitle}>
-          Teaching Strategies
-        </Text>
 
-        {strategies.length === 0 ? (
-          <Text style={s.emptyText}>
-            No skill-specific strategies have
-            been added yet. Use General
-            Strategies or ask the SEEDS
-            Assistant for help troubleshooting
-            a difficult step.
-          </Text>
-        ) : (
-          strategies.map(
-            (strategy, index) => (
-              <View
-                key={
-                  strategy.id ||
-                  strategy.title ||
-                  index
-                }
-                style={s.strategyRow}
-              >
-                <View style={s.number}>
-                  <Text style={s.numberText}>
-                    {index + 1}
-                  </Text>
-                </View>
+      {missing && (
 
-                <View style={{ flex: 1 }}>
-                  <Text style={s.strategyTitle}>
-                    {typeof strategy === 'string'
-                      ? strategy
-                      : strategy.title}
-                  </Text>
-
-                  {typeof strategy !== 'string' &&
-                    !!(
-                      strategy.detail ||
-                      strategy.description
-                    ) && (
-                      <Text style={s.strategyText}>
-                        {strategy.detail ||
-                          strategy.description}
-                      </Text>
-                    )}
-                </View>
-              </View>
+        <Pressable
+          style={s.warning}
+          onPress={() =>
+            router.push(
+              "/student-profile"
             )
-          )
+          }
+        >
+
+          <Ionicons
+            name="information-circle-outline"
+            size={22}
+            color="#A56A00"
+          />
+
+
+          <Text style={s.warningText}>
+            Add strengths, learning barriers,
+            and interests to the Student
+            Profile for better personalization.
+          </Text>
+
+        </Pressable>
+
+      )}
+
+
+      <Pressable
+        style={[
+          s.button,
+          loading && s.buttonDisabled,
+        ]}
+        onPress={handleGenerate}
+        disabled={loading}
+      >
+
+        {loading ? (
+
+          <ActivityIndicator
+            color="#FFF"
+          />
+
+        ) : (
+
+          <Ionicons
+            name="sparkles"
+            size={20}
+            color="#FFF"
+          />
+
         )}
-      </View>
 
-      <View style={s.card}>
-        <Text style={s.cardTitle}>
-          Videos & Resources
-        </Text>
-        <Text style={s.resourceHint}>
-          Links added to this skill's
-          resources array in Firebase appear
-          here automatically.
-        </Text>
-        <ResourceList resources={resources} />
-      </View>
 
-      <View style={s.aiCard}>
-        <Ionicons
-          name="chatbubble-ellipses-outline"
-          size={24}
-          color="#258DEB"
-        />
-        <View style={{ flex: 1 }}>
-          <Text style={s.aiTitle}>
-            Stuck on one step?
+        <Text style={s.buttonText}>
+
+          {loading
+            ? "Creating Poster..."
+            : posterUrl
+              ? "Regenerate Poster"
+              : "Generate My Child’s Visual"}
+
+        </Text>
+
+      </Pressable>
+
+
+      {loading && (
+
+        <View style={s.loadingCard}>
+
+          <Ionicons
+            name="image-outline"
+            size={42}
+            color="#7559E8"
+          />
+
+          <Text style={s.loadingTitle}>
+            Creating your visual...
           </Text>
-          <Text style={s.aiText}>
-            Open the SEEDS Assistant in the
-            corner and describe exactly where
-            your child gets stuck. It can help
-            identify a smaller missing step.
+
+          <Text style={s.loadingText}>
+            Your personalized poster is being
+            created. This may take a little while.
           </Text>
+
         </View>
-      </View>
+
+      )}
+
+
+      {!!error && (
+
+        <View style={s.errorBox}>
+
+          <Text style={s.errorText}>
+            {error}
+          </Text>
+
+        </View>
+
+      )}
+
+
+      {!!posterUrl && (
+
+        <View style={s.result}>
+
+          <Text style={s.resultTitle}>
+
+            {profile.name
+              ? `${profile.name}’s `
+              : ""}
+
+            {skill.title}
+
+          </Text>
+
+
+          <Image
+            source={{
+              uri: posterUrl,
+            }}
+            style={s.poster}
+            resizeMode="contain"
+            onLoad={() => {
+              console.log(
+                "Poster loaded successfully"
+              );
+            }}
+            onError={(event) => {
+
+              console.error(
+                "Poster failed to load:",
+                event.nativeEvent.error
+              );
+
+              setError(
+                "The poster was created, but the image could not be displayed."
+              );
+
+            }}
+          />
+
+
+          <Text style={s.disclaimer}>
+            AI-generated visuals may need to be
+            adjusted for your child’s individual
+            needs.
+          </Text>
+
+        </View>
+
+      )}
+
     </ScrollView>
+
   );
+
 }
 
+
 const s = StyleSheet.create({
+
   page: {
     flex: 1,
-    backgroundColor: '#F2F9FF',
+    backgroundColor: "#F2F9FF",
   },
+
   content: {
-    paddingBottom: 44,
+    paddingBottom: 40,
   },
+
   header: {
     paddingTop: 56,
     paddingHorizontal: 20,
     paddingBottom: 18,
-    backgroundColor: '#FFFFFF',
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
+    backgroundColor: "#FFF",
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
   },
-  headerTitle: {
-    fontSize: 21,
-    fontWeight: '800',
-    color: '#17213A',
-  },
-  hero: {
-    margin: 16,
-    marginBottom: 0,
-    padding: 18,
-    borderRadius: 20,
-    backgroundColor: '#E8F7F2',
-    flexDirection: 'row',
-    gap: 12,
-    alignItems: 'center',
-  },
+
   title: {
     fontSize: 20,
-    fontWeight: '800',
-    color: '#17365D',
+    fontWeight: "800",
   },
-  subtitle: {
-    marginTop: 4,
-    color: '#617083',
-    lineHeight: 19,
-  },
-  card: {
-    marginHorizontal: 16,
-    marginTop: 16,
-    padding: 18,
+
+  hero: {
+    margin: 18,
+    backgroundColor: "#FFF",
     borderRadius: 20,
-    backgroundColor: '#FFFFFF',
+    padding: 18,
+    flexDirection: "row",
+    gap: 13,
   },
-  cardTitle: {
+
+  heroTitle: {
     fontSize: 18,
-    fontWeight: '800',
-    color: '#17213A',
-    marginBottom: 12,
+    fontWeight: "800",
   },
-  strategyRow: {
-    flexDirection: 'row',
-    gap: 12,
-    paddingVertical: 11,
-    borderTopWidth: 1,
-    borderTopColor: '#EEF2F6',
-  },
-  number: {
-    width: 30,
-    height: 30,
-    borderRadius: 15,
-    backgroundColor: '#E8F7F2',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  numberText: {
-    fontSize: 12,
-    fontWeight: '800',
-    color: '#248A6B',
-  },
-  strategyTitle: {
-    fontSize: 15,
-    fontWeight: '800',
-    color: '#17213A',
-  },
-  strategyText: {
-    marginTop: 4,
-    fontSize: 14,
+
+  intro: {
+    color: "#718096",
     lineHeight: 20,
-    color: '#617083',
+    marginTop: 5,
   },
-  emptyText: {
-    color: '#718096',
-    lineHeight: 21,
-  },
-  resourceHint: {
-    marginTop: -4,
-    marginBottom: 12,
-    fontSize: 12,
-    lineHeight: 17,
-    color: '#718096',
-  },
-  aiCard: {
-    marginHorizontal: 16,
-    marginTop: 16,
-    padding: 16,
-    borderRadius: 18,
-    backgroundColor: '#EAF5FF',
-    flexDirection: 'row',
-    gap: 11,
-    alignItems: 'flex-start',
-  },
-  aiTitle: {
-    fontSize: 15,
-    fontWeight: '800',
-    color: '#245A87',
-  },
-  aiText: {
-    marginTop: 4,
-    fontSize: 13,
-    lineHeight: 19,
-    color: '#526173',
-  },
-  center: {
-    flex: 1,
-    backgroundColor: '#F2F9FF',
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: 24,
-  },
-  loadingText: {
-    marginTop: 10,
-    color: '#718096',
-  },
-  emptyTitle: {
-    fontSize: 20,
-    fontWeight: '800',
-    color: '#17213A',
-  },
-  primaryButton: {
-    marginTop: 16,
-    paddingHorizontal: 18,
-    paddingVertical: 12,
+
+  warning: {
+    marginHorizontal: 18,
+    backgroundColor: "#FFF5D9",
     borderRadius: 14,
-    backgroundColor: '#258DEB',
+    padding: 13,
+    flexDirection: "row",
+    gap: 9,
   },
-  primaryText: {
-    color: '#FFFFFF',
-    fontWeight: '800',
+
+  warningText: {
+    flex: 1,
+    color: "#76520E",
+    lineHeight: 19,
   },
+
+  button: {
+    margin: 18,
+    backgroundColor: "#258DEB",
+    borderRadius: 18,
+    padding: 17,
+    flexDirection: "row",
+    justifyContent: "center",
+    alignItems: "center",
+    gap: 9,
+  },
+
+  buttonDisabled: {
+    opacity: 0.7,
+  },
+
+  buttonText: {
+    color: "#FFF",
+    fontSize: 16,
+    fontWeight: "800",
+  },
+
+  loadingCard: {
+    marginHorizontal: 18,
+    marginBottom: 18,
+    backgroundColor: "#FFF",
+    borderRadius: 20,
+    padding: 24,
+    alignItems: "center",
+  },
+
+  loadingTitle: {
+    fontSize: 18,
+    fontWeight: "800",
+    marginTop: 12,
+  },
+
+  loadingText: {
+    color: "#718096",
+    lineHeight: 20,
+    marginTop: 6,
+    textAlign: "center",
+  },
+
+  result: {
+    marginHorizontal: 18,
+    marginBottom: 36,
+    backgroundColor: "#FFF",
+    borderRadius: 20,
+    padding: 18,
+  },
+
+  resultTitle: {
+    fontSize: 22,
+    fontWeight: "800",
+    marginBottom: 16,
+    textAlign: "center",
+  },
+
+  poster: {
+    width: "100%",
+    height: 520,
+    borderRadius: 14,
+    backgroundColor: "#F5F7FA",
+  },
+
+  disclaimer: {
+    fontSize: 12,
+    color: "#8A94A3",
+    lineHeight: 17,
+    marginTop: 14,
+    textAlign: "center",
+  },
+
+  errorBox: {
+    marginHorizontal: 18,
+    marginBottom: 18,
+    backgroundColor: "#FFE8E8",
+    borderRadius: 14,
+    padding: 14,
+  },
+
+  errorText: {
+    color: "#A52A2A",
+    lineHeight: 20,
+  },
+
 });
