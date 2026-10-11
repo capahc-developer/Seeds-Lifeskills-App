@@ -18,16 +18,16 @@ const cards = [
   {
     title: 'Your Skills',
     subtitle:
-      'Practice built-in skills or create and customize your own.',
+      'Practice the Independent Steps skills and customize steps for your child.',
     icon: 'apps-outline',
     tint: '#EEE9FF',
     color: '#7C5CE7',
     route: '/all-skills',
   },
   {
-    title: 'My Visuals',
+    title: 'Visual Templates',
     subtitle:
-      'View personalized visual guides created for your child.',
+      'Choose a skill, background, and add your own local photos.',
     icon: 'images-outline',
     tint: '#F2EAFE',
     color: '#7559E8',
@@ -78,7 +78,7 @@ export default function HomeScreen() {
           <View style={styles.studentBannerText}>
             <Text style={styles.studentLabel}>STUDENT PROFILE</Text>
             <Text style={styles.studentName}>{loading ? 'Loading...' : profile.name || 'Add your child’s profile'}</Text>
-            <Text style={styles.studentHint}>Personalize skills and visual guides</Text>
+            <Text style={styles.studentHint}>Personalize skills and learning supports</Text>
           </View>
           <Ionicons name="chevron-forward" size={20} color="#47749A" />
         </Pressable>
