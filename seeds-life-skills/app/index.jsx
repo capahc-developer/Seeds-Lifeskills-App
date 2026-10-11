@@ -42,6 +42,14 @@ const cards = [
     route: '/assignments',
   },
   {
+    title: 'My Garden',
+    subtitle: 'See the seeds planted with every practice.',
+    icon: 'flower-outline',
+    tint: '#E7F5DF',
+    color: '#4A9660',
+    route: '/garden',
+  },
+  {
     title: 'Reports',
     subtitle: "See your child's progress over time.",
     icon: 'bar-chart-outline',
