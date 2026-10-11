@@ -1,506 +1,179 @@
-import { useState } from "react";
-import {
-  ScrollView,
-  StyleSheet,
-  Text,
-  View,
-  Pressable,
-  ActivityIndicator,
-  Image,
-} from "react-native";
+import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { router, useLocalSearchParams } from 'expo-router';
+import { Ionicons } from '@expo/vector-icons';
 
-import {
-  router,
-  useLocalSearchParams,
-} from "expo-router";
+import { findSkill } from '../../../data/skills';
+import { findIndependentStepsSkill } from '../../../data/independentStepsSkills';
 
-import { Ionicons } from "@expo/vector-icons";
-
-import { httpsCallable } from "firebase/functions";
-
-import { functions } from "../../../lib/firebase";
-import { findSkill } from "../../../data/skills";
-import { useStudentProfile } from "../../../context/StudentProfileContext";
-
-
-export default function Visual() {
-
+export default function SkillStrategies() {
   const { skillId } = useLocalSearchParams();
+  const resolvedSkillId = Array.isArray(skillId) ? skillId[0] : skillId;
 
-  const skill = findSkill(skillId);
-
-  const { profile } = useStudentProfile();
-
-  const [loading, setLoading] = useState(false);
-  const [posterUrl, setPosterUrl] = useState("");
-  const [error, setError] = useState("");
-
-
-  if (!skill) {
-    return null;
-  }
-
-
-  const missing =
-    !profile.strengths &&
-    !profile.barriers &&
-    !profile.interests;
-
-
-  // --------------------------------
-  // Generate AI Visual Poster
-  // --------------------------------
-
-  const handleGenerate = async () => {
-
-    try {
-
-      setLoading(true);
-      setError("");
-
-
-      const generateVisualPlan =
-        httpsCallable(
-          functions,
-          "generateVisualPlan"
-        );
-
-
-      const result =
-        await generateVisualPlan({
-
-          skill: skill.title,
-
-          strengths:
-            profile.strengths ||
-            "Not provided",
-
-          barriers:
-            profile.barriers ||
-            "Not provided",
-
-          interests:
-            profile.interests ||
-            "Not provided",
-
-        });
-
-
-      console.log(
-        "AI response:",
-        result.data
-      );
-
-
-      const url = result.data?.posterUrl;
-
-      if (!url) {
-        throw new Error(
-          "The AI function did not return a poster URL."
-        );
-      }
-
-
-      console.log(
-        "Poster URL:",
-        url
-      );
-
-
-      setPosterUrl(url);
-
-
-    } catch (err) {
-
-      console.error(
-        "Error generating visual:",
-        err
-      );
-
-      setError(
-        "We couldn't generate the visual. Please try again."
-      );
-
-
-    } finally {
-
-      setLoading(false);
-
-    }
-
+  const localSkill = findSkill(resolvedSkillId);
+  const independentSkill = findIndependentStepsSkill(resolvedSkillId);
+  const skill = {
+    ...localSkill,
+    ...independentSkill,
+    strategies:
+      independentSkill?.strategies?.length
+        ? independentSkill.strategies
+        : localSkill?.strategies || [],
   };
 
-
-  // --------------------------------
-  // Screen
-  // --------------------------------
+  if (!skill?.title) {
+    return (
+      <View style={s.center}>
+        <Text style={s.errorTitle}>Strategies not found</Text>
+        <Pressable onPress={() => router.back()} style={s.backButton}>
+          <Text style={s.backButtonText}>Go Back</Text>
+        </Pressable>
+      </View>
+    );
+  }
 
   return (
-
-    <ScrollView
-      style={s.page}
-      contentContainerStyle={s.content}
-    >
-
+    <ScrollView style={s.page} contentContainerStyle={s.content}>
       <View style={s.header}>
-
-        <Pressable
-          onPress={() => router.back()}
-        >
-
-          <Ionicons
-            name="chevron-back"
-            size={28}
-          />
-
+        <Pressable onPress={() => router.back()}>
+          <Ionicons name="chevron-back" size={28} color="#17213A" />
         </Pressable>
-
-
-        <Text style={s.title}>
-          Step-by-Step Visual
-        </Text>
-
-
+        <Text style={s.headerTitle}>Strategies</Text>
         <View style={{ width: 28 }} />
-
       </View>
-
 
       <View style={s.hero}>
-
-        <Ionicons
-          name="sparkles"
-          size={34}
-          color="#7559E8"
-        />
-
-
-        <View style={{ flex: 1 }}>
-
-          <Text style={s.heroTitle}>
-            Personalized Step-by-Step Visual
-          </Text>
-
-
-          <Text style={s.intro}>
-            Create a personalized visual poster
-            for{" "}
-            {skill.title}.
-          </Text>
-
+        <View style={s.heroIcon}>
+          <Ionicons name="bulb-outline" size={29} color="#248A6B" />
         </View>
-
+        <View style={{ flex: 1 }}>
+          <Text style={s.title}>{skill.title}</Text>
+          <Text style={s.subtitle}>
+            Practical ways to make this skill easier to teach and practice.
+          </Text>
+        </View>
       </View>
 
+      {(skill.strategies || []).map((strategy, index) => (
+        <View key={`${strategy.title}-${index}`} style={s.card}>
+          <View style={s.number}>
+            <Text style={s.numberText}>{index + 1}</Text>
+          </View>
+          <View style={{ flex: 1 }}>
+            <Text style={s.cardTitle}>{strategy.title}</Text>
+            <Text style={s.cardText}>{strategy.detail}</Text>
+          </View>
+        </View>
+      ))}
 
-      {missing && (
-
-        <Pressable
-          style={s.warning}
-          onPress={() =>
-            router.push(
-              "/student-profile"
-            )
-          }
-        >
-
-          <Ionicons
-            name="information-circle-outline"
-            size={22}
-            color="#A56A00"
-          />
-
-
-          <Text style={s.warningText}>
-            Add strengths, learning barriers,
-            and interests to the Student
-            Profile for better personalization.
+      {!skill.strategies?.length && (
+        <View style={s.emptyCard}>
+          <Text style={s.emptyText}>
+            No specific strategies have been added for this skill yet.
           </Text>
-
-        </Pressable>
-
+        </View>
       )}
-
 
       <Pressable
-        style={[
-          s.button,
-          loading && s.buttonDisabled,
-        ]}
-        onPress={handleGenerate}
-        disabled={loading}
+        style={s.helpButton}
+        onPress={() => router.push(`/skill/${resolvedSkillId}/step-help`)}
       >
-
-        {loading ? (
-
-          <ActivityIndicator
-            color="#FFF"
-          />
-
-        ) : (
-
-          <Ionicons
-            name="sparkles"
-            size={20}
-            color="#FFF"
-          />
-
-        )}
-
-
-        <Text style={s.buttonText}>
-
-          {loading
-            ? "Creating Poster..."
-            : posterUrl
-              ? "Regenerate Poster"
-              : "Generate My Child’s Visual"}
-
-        </Text>
-
+        <Ionicons name="sparkles-outline" size={20} color="#6B5BD2" />
+        <Text style={s.helpButtonText}>Get help with a difficult step</Text>
       </Pressable>
-
-
-      {loading && (
-
-        <View style={s.loadingCard}>
-
-          <Ionicons
-            name="image-outline"
-            size={42}
-            color="#7559E8"
-          />
-
-          <Text style={s.loadingTitle}>
-            Creating your visual...
-          </Text>
-
-          <Text style={s.loadingText}>
-            Your personalized poster is being
-            created. This may take a little while.
-          </Text>
-
-        </View>
-
-      )}
-
-
-      {!!error && (
-
-        <View style={s.errorBox}>
-
-          <Text style={s.errorText}>
-            {error}
-          </Text>
-
-        </View>
-
-      )}
-
-
-      {!!posterUrl && (
-
-        <View style={s.result}>
-
-          <Text style={s.resultTitle}>
-
-            {profile.name
-              ? `${profile.name}’s `
-              : ""}
-
-            {skill.title}
-
-          </Text>
-
-
-          <Image
-            source={{
-              uri: posterUrl,
-            }}
-            style={s.poster}
-            resizeMode="contain"
-            onLoad={() => {
-              console.log(
-                "Poster loaded successfully"
-              );
-            }}
-            onError={(event) => {
-
-              console.error(
-                "Poster failed to load:",
-                event.nativeEvent.error
-              );
-
-              setError(
-                "The poster was created, but the image could not be displayed."
-              );
-
-            }}
-          />
-
-
-          <Text style={s.disclaimer}>
-            AI-generated visuals may need to be
-            adjusted for your child’s individual
-            needs.
-          </Text>
-
-        </View>
-
-      )}
-
     </ScrollView>
-
   );
-
 }
 
-
 const s = StyleSheet.create({
-
-  page: {
-    flex: 1,
-    backgroundColor: "#F2F9FF",
-  },
-
-  content: {
-    paddingBottom: 40,
-  },
-
+  page: { flex: 1, backgroundColor: '#F2F9FF' },
+  content: { paddingBottom: 42 },
   header: {
     paddingTop: 56,
     paddingHorizontal: 20,
     paddingBottom: 18,
-    backgroundColor: "#FFF",
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
+    backgroundColor: '#FFFFFF',
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
   },
-
-  title: {
-    fontSize: 20,
-    fontWeight: "800",
-  },
-
+  headerTitle: { fontSize: 20, fontWeight: '800', color: '#17213A' },
   hero: {
-    margin: 18,
-    backgroundColor: "#FFF",
+    margin: 16,
+    backgroundColor: '#FFFFFF',
     borderRadius: 20,
-    padding: 18,
-    flexDirection: "row",
-    gap: 13,
-  },
-
-  heroTitle: {
-    fontSize: 18,
-    fontWeight: "800",
-  },
-
-  intro: {
-    color: "#718096",
-    lineHeight: 20,
-    marginTop: 5,
-  },
-
-  warning: {
-    marginHorizontal: 18,
-    backgroundColor: "#FFF5D9",
-    borderRadius: 14,
-    padding: 13,
-    flexDirection: "row",
-    gap: 9,
-  },
-
-  warningText: {
-    flex: 1,
-    color: "#76520E",
-    lineHeight: 19,
-  },
-
-  button: {
-    margin: 18,
-    backgroundColor: "#258DEB",
-    borderRadius: 18,
     padding: 17,
-    flexDirection: "row",
-    justifyContent: "center",
-    alignItems: "center",
-    gap: 9,
+    flexDirection: 'row',
+    gap: 13,
+    alignItems: 'center',
   },
-
-  buttonDisabled: {
-    opacity: 0.7,
+  heroIcon: {
+    width: 50,
+    height: 50,
+    borderRadius: 25,
+    backgroundColor: '#E8F7F2',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
-
-  buttonText: {
-    color: "#FFF",
-    fontSize: 16,
-    fontWeight: "800",
+  title: { fontSize: 19, fontWeight: '800', color: '#17365D' },
+  subtitle: { marginTop: 4, fontSize: 13, lineHeight: 19, color: '#718096' },
+  card: {
+    marginHorizontal: 16,
+    marginBottom: 11,
+    borderRadius: 18,
+    padding: 16,
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: '#E1EAF1',
+    flexDirection: 'row',
+    gap: 12,
+    alignItems: 'flex-start',
   },
-
-  loadingCard: {
-    marginHorizontal: 18,
-    marginBottom: 18,
-    backgroundColor: "#FFF",
-    borderRadius: 20,
-    padding: 24,
-    alignItems: "center",
+  number: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: '#E8F7F2',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
-
-  loadingTitle: {
-    fontSize: 18,
-    fontWeight: "800",
-    marginTop: 12,
-  },
-
-  loadingText: {
-    color: "#718096",
-    lineHeight: 20,
-    marginTop: 6,
-    textAlign: "center",
-  },
-
-  result: {
-    marginHorizontal: 18,
-    marginBottom: 36,
-    backgroundColor: "#FFF",
-    borderRadius: 20,
+  numberText: { color: '#248A6B', fontWeight: '800' },
+  cardTitle: { fontSize: 16, fontWeight: '800', color: '#17213A' },
+  cardText: { marginTop: 5, fontSize: 14, lineHeight: 20, color: '#617083' },
+  emptyCard: {
+    marginHorizontal: 16,
     padding: 18,
+    borderRadius: 18,
+    backgroundColor: '#FFFFFF',
   },
-
-  resultTitle: {
-    fontSize: 22,
-    fontWeight: "800",
-    marginBottom: 16,
-    textAlign: "center",
+  emptyText: { textAlign: 'center', color: '#718096' },
+  helpButton: {
+    marginHorizontal: 16,
+    marginTop: 5,
+    borderRadius: 18,
+    padding: 16,
+    backgroundColor: '#F1EDFF',
+    borderWidth: 1,
+    borderColor: '#DED7F5',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
   },
-
-  poster: {
-    width: "100%",
-    height: 520,
+  helpButtonText: { color: '#5948BA', fontWeight: '800', fontSize: 15 },
+  center: {
+    flex: 1,
+    backgroundColor: '#F2F9FF',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 30,
+  },
+  errorTitle: { fontSize: 20, fontWeight: '800', color: '#17213A' },
+  backButton: {
+    marginTop: 18,
+    backgroundColor: '#258DEB',
+    paddingHorizontal: 22,
+    paddingVertical: 12,
     borderRadius: 14,
-    backgroundColor: "#F5F7FA",
   },
-
-  disclaimer: {
-    fontSize: 12,
-    color: "#8A94A3",
-    lineHeight: 17,
-    marginTop: 14,
-    textAlign: "center",
-  },
-
-  errorBox: {
-    marginHorizontal: 18,
-    marginBottom: 18,
-    backgroundColor: "#FFE8E8",
-    borderRadius: 14,
-    padding: 14,
-  },
-
-  errorText: {
-    color: "#A52A2A",
-    lineHeight: 20,
-  },
-
+  backButtonText: { color: '#FFFFFF', fontWeight: '800' },
 });
