@@ -230,6 +230,14 @@ export default function Skill() {
       </View>
 
       <Pressable
+        style={s.visualButton}
+        onPress={() => router.push(`/skill/${skill.id}/visual`)}
+      >
+        <Ionicons name="images-outline" size={20} color="#2F7D51" />
+        <Text style={s.visualButtonText}>Create Visual Template</Text>
+      </Pressable>
+
+      <Pressable
         style={s.button}
         onPress={() => router.push(`/skill/${skill.id}/strategies`)}
       >
@@ -354,6 +362,24 @@ const s = StyleSheet.create({
     lineHeight: 21,
     color: '#34435A',
     paddingTop: 4,
+  },
+  visualButton: {
+    marginHorizontal: 16,
+    marginBottom: 12,
+    backgroundColor: '#F1FAF4',
+    borderWidth: 1,
+    borderColor: '#CFE5D6',
+    padding: 16,
+    borderRadius: 18,
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    gap: 9,
+  },
+  visualButtonText: {
+    color: '#2F7D51',
+    fontWeight: '800',
+    fontSize: 16,
   },
   button: {
     marginHorizontal: 16,
