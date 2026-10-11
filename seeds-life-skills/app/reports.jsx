@@ -619,7 +619,7 @@ export default function Reports() {
           <Ionicons
             name="flame"
             size={30}
-            color="#F39A32"
+            color="#45A66B"
           />
 
         </View>
@@ -1008,7 +1008,7 @@ const s = StyleSheet.create({
 
   page: {
     flex: 1,
-    backgroundColor: '#F2F9FF',
+    backgroundColor: '#F3FAF6',
   },
 
   content: {
@@ -1073,6 +1073,8 @@ const s = StyleSheet.create({
     backgroundColor: '#FFFFFF',
     borderRadius: 18,
     paddingVertical: 17,
+    borderWidth: 1,
+    borderColor: '#E3EFE7',
     alignItems: 'center',
   },
 
@@ -1097,7 +1099,7 @@ const s = StyleSheet.create({
   streakCard: {
     marginHorizontal: 16,
     marginTop: 18,
-    backgroundColor: '#FFF7E8',
+    backgroundColor: '#EFF8F1',
     borderRadius: 20,
     padding: 17,
     flexDirection: 'row',
@@ -1109,7 +1111,7 @@ const s = StyleSheet.create({
     width: 54,
     height: 54,
     borderRadius: 27,
-    backgroundColor: '#FFE8BD',
+    backgroundColor: '#DDF1E3',
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -1136,6 +1138,8 @@ const s = StyleSheet.create({
     backgroundColor: '#FFFFFF',
     borderRadius: 20,
     padding: 18,
+    borderWidth: 1,
+    borderColor: '#E3EFE7',
   },
 
   cardTitle: {
@@ -1199,7 +1203,7 @@ const s = StyleSheet.create({
 
   bar: {
     width: 36,
-    backgroundColor: '#64B5F6',
+    backgroundColor: '#70B987',
     borderRadius: 9,
   },
 
@@ -1306,7 +1310,7 @@ const s = StyleSheet.create({
 
   skillProgressFill: {
     height: 9,
-    backgroundColor: '#258DEB',
+    backgroundColor: '#45A66B',
     borderRadius: 5,
   },
 
