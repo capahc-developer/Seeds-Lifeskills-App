@@ -25,7 +25,7 @@ const seedsSkillResource = {
   title: 'SEEDS skill video and resources',
   description: 'Open the SEEDS resource page for supporting materials and videos.',
   url: 'https://www.capa-hc.org/seeds-2/',
-  type: 'video',
+  type: 'link',
 };
 
 export default function Skill() {
