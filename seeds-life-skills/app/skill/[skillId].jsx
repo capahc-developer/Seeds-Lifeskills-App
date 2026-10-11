@@ -230,11 +230,19 @@ export default function Skill() {
       </View>
 
       <Pressable
-        style={s.visualButton}
-        onPress={() => router.push(`/skill/${skill.id}/visual`)}
+        style={s.stepHelpCard}
+        onPress={() => router.push(`/skill/${skill.id}/step-help`)}
       >
-        <Ionicons name="images-outline" size={20} color="#2F7D51" />
-        <Text style={s.visualButtonText}>Create Visual Template</Text>
+        <View style={s.stepHelpIcon}>
+          <Ionicons name="sparkles-outline" size={23} color="#6B5BD2" />
+        </View>
+        <View style={{ flex: 1 }}>
+          <Text style={s.stepHelpTitle}>Need help with a difficult step?</Text>
+          <Text style={s.stepHelpText}>
+            Ask AI to break a step into smaller actions or identify a missing micro-step.
+          </Text>
+        </View>
+        <Ionicons name="chevron-forward" size={20} color="#7B8794" />
       </Pressable>
 
       <Pressable
@@ -363,23 +371,36 @@ const s = StyleSheet.create({
     color: '#34435A',
     paddingTop: 4,
   },
-  visualButton: {
+  stepHelpCard: {
     marginHorizontal: 16,
     marginBottom: 12,
-    backgroundColor: '#F1FAF4',
+    backgroundColor: '#F7F4FF',
     borderWidth: 1,
-    borderColor: '#CFE5D6',
-    padding: 16,
+    borderColor: '#E2DCF9',
+    padding: 15,
     borderRadius: 18,
     flexDirection: 'row',
-    justifyContent: 'center',
     alignItems: 'center',
-    gap: 9,
+    gap: 12,
   },
-  visualButtonText: {
-    color: '#2F7D51',
+  stepHelpIcon: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: '#ECE7FF',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  stepHelpTitle: {
+    color: '#3C326D',
     fontWeight: '800',
-    fontSize: 16,
+    fontSize: 15,
+  },
+  stepHelpText: {
+    marginTop: 4,
+    color: '#716A89',
+    fontSize: 12,
+    lineHeight: 17,
   },
   button: {
     marginHorizontal: 16,
