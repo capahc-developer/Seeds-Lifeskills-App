@@ -22,6 +22,7 @@ import * as FileSystem from 'expo-file-system/legacy';
 
 import { auth, db, storage } from '../../../lib/firebase';
 import { findIndependentStepsSkill } from '../../../data/independentStepsSkills';
+import { useStudentProfile } from '../../../context/StudentProfileContext';
 
 const genericSteps = [
   'Get ready and gather what you need.',
@@ -167,7 +168,37 @@ function bytesToBase64(bytes) {
   return output;
 }
 
+// Personalize the display only; never overwrite parent-edited skill steps.
+function personalizeStep(step, firstName) {
+  const text = String(step || '').trim();
+  if (!firstName || !text) return text;
+  if (text.toLowerCase().startsWith(firstName.toLowerCase() + ' ')) return text;
+  const verbs = {
+    put: 'puts', pull: 'pulls', hold: 'holds', find: 'finds',
+    push: 'pushes', keep: 'keeps', check: 'checks', bring: 'brings',
+    wash: 'washes', dry: 'dries', gather: 'gathers', crack: 'cracks',
+    use: 'uses', place: 'places', add: 'adds', pour: 'pours',
+    cook: 'cooks', turn: 'turns', move: 'moves', clean: 'cleans',
+    wait: 'waits', get: 'gets', start: 'starts', continue: 'continues',
+    mix: 'mixes', open: 'opens', close: 'closes', zip: 'zips',
+    insert: 'inserts', line: 'lines', repeat: 'repeats', look: 'looks',
+    make: 'makes', take: 'takes', brush: 'brushes', apply: 'applies',
+    wipe: 'wipes', eat: 'eats', practice: 'practices', prepare: 'prepares',
+  };
+  // Preserve introductory safety qualifiers such as "With adult support as needed".
+  const match = text.match(/^(With adult support as needed,\s*|With adult help,\s*)?([A-Za-z]+)\b(.*)$/i);
+  if (!match) return text;
+  const [, qualifier = '', verb, rest] = match;
+  const conjugated = verbs[verb.toLowerCase()];
+  if (!conjugated) return text;
+  return qualifier
+    ? `${firstName} ${conjugated} ${rest.trimStart()} ${qualifier.trim().replace(/,$/, '')}.`.replace(/\.\.$/, '.')
+    : `${firstName} ${conjugated}${rest}`;
+}
+
 export default function VisualTemplateBuilder() {
+  const { profile } = useStudentProfile();
+  const firstName = String(profile?.name || '').trim().split(/\s+/)[0] || '';
   const { skillId } = useLocalSearchParams();
   const resolvedSkillId = Array.isArray(skillId) ? skillId[0] : skillId;
 
@@ -487,7 +518,6 @@ export default function VisualTemplateBuilder() {
   function buildPrintableHtml(backgroundDataUri = '') {
     const theme = selectedBackground;
     const title = escapeHtml(skill?.title || 'Visual Schedule');
-    const templateTitle = escapeHtml(selectedTemplate?.title || 'Visual Template');
 
     const backgroundCss = backgroundDataUri
       ? `
@@ -529,7 +559,7 @@ export default function VisualTemplateBuilder() {
                 <div class="stepLabel">STEP ${index + 1}</div>
               </div>
               ${photoBlock}
-              <div class="stepText">${escapeHtml(step)}</div>
+              <div class="stepText">${escapeHtml(personalizeStep(step, firstName))}</div>
             </section>
           `;
         }
@@ -771,11 +801,6 @@ export default function VisualTemplateBuilder() {
               <h1>${title}</h1>
               <div class="headerSub">
                 Follow one step at a time. Keep the page nearby while practicing.
-              </div>
-              <div class="chips">
-                <div class="chip">${steps.length} steps</div>
-                <div class="chip">${templateTitle}</div>
-                <div class="chip">${escapeHtml(theme.title || 'Background')}</div>
               </div>
             </header>
 
@@ -1116,7 +1141,7 @@ export default function VisualTemplateBuilder() {
 
             <View style={s.stepTextWrap}>
               <Text style={[s.stepText, { color: selectedBackground.text }]}>
-                {step}
+                {personalizeStep(step, firstName)}
               </Text>
               {templateId !== 'text-only' && photo?.uri && (
                 <Pressable onPress={() => choosePhoto(index)}>
