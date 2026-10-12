@@ -13,6 +13,7 @@ const FLOWER_ART = {
     require('../assets/garden/tulip_plant.png'),
     require('../assets/garden/tulip_flower.png'),
   ],
+
   rose: [
     require('../assets/garden/rose_seed.png'),
     require('../assets/garden/rose_sprout.png'),
