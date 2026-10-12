@@ -48,5 +48,9 @@ service cloud.firestore {
     match /skills/{skillId} {
       allow read: if request.auth != null;
     }
+
+    match /strategyGuides/{strategyId} {
+      allow read: if request.auth != null;
+    }
   }
 }
