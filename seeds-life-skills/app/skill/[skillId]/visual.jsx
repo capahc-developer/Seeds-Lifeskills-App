@@ -522,7 +522,7 @@ export default function VisualTemplateBuilder() {
     const backgroundCss = backgroundDataUri
       ? `
           background-image:
-            linear-gradient(rgba(255,255,255,0.30), rgba(255,255,255,0.30)),
+            linear-gradient(rgba(255,255,255,0.12), rgba(255,255,255,0.12)),
             url("${backgroundDataUri}");
           background-size: cover;
           background-position: center;
@@ -569,7 +569,7 @@ export default function VisualTemplateBuilder() {
             <div class="stepNumber">${index + 1}</div>
             <div class="stepCopy">
               <div class="stepLabel">STEP ${index + 1}</div>
-              <div class="stepText">${escapeHtml(step)}</div>
+              <div class="stepText">${escapeHtml(personalizeStep(step, firstName))}</div>
             </div>
             ${photoBlock}
           </section>
@@ -665,16 +665,16 @@ export default function VisualTemplateBuilder() {
             .steps {
               display: flex;
               flex-direction: column;
-              gap: 18px;
+              gap: 12px;
             }
 
             .stepCard {
               width: 100%;
-              min-height: 2.18in;
-              background: rgba(255,255,255,0.94);
+              min-height: 1.65in;
+              background: rgba(255,255,255,0.82);
               border: 2px solid ${theme.border};
-              border-radius: 22px;
-              padding: 18px;
+              border-radius: 18px;
+              padding: 12px;
               page-break-inside: avoid;
               break-inside: avoid;
               box-shadow: 0 5px 14px rgba(31,42,55,0.08);
@@ -689,7 +689,7 @@ export default function VisualTemplateBuilder() {
               display: flex;
               flex-direction: row;
               align-items: center;
-              gap: 18px;
+              gap: 12px;
             }
 
             .stepCard.top {
@@ -734,14 +734,14 @@ export default function VisualTemplateBuilder() {
 
             .stepText {
               color: ${theme.text};
-              font-size: 21px;
-              line-height: 1.35;
+              font-size: 16px;
+              line-height: 1.3;
               font-weight: 750;
             }
 
             .photo {
-              width: 2.42in;
-              height: 1.78in;
+              width: 1.75in;
+              height: 1.25in;
               flex-shrink: 0;
               object-fit: cover;
               border-radius: 15px;
@@ -751,7 +751,7 @@ export default function VisualTemplateBuilder() {
 
             .stepCard.top .photo {
               width: 100%;
-              height: 3.25in;
+              height: 2.0in;
             }
 
             .placeholder {
@@ -1440,8 +1440,8 @@ const s = StyleSheet.create({
   stepCard: {
     marginHorizontal: 16,
     marginBottom: 12,
-    minHeight: 138,
-    padding: 14,
+    minHeight: 106,
+    padding: 10,
     borderRadius: 20,
     borderWidth: 1,
     flexDirection: 'row',
@@ -1467,8 +1467,8 @@ const s = StyleSheet.create({
   },
 
   photoWrap: {
-    width: 145,
-    height: 120,
+    width: 105,
+    height: 86,
     borderRadius: 14,
     overflow: 'hidden',
     position: 'relative',
@@ -1476,7 +1476,7 @@ const s = StyleSheet.create({
 
   photoWrapTop: {
     width: '100%',
-    height: 260,
+    height: 165,
   },
 
   photo: {
@@ -1516,8 +1516,8 @@ const s = StyleSheet.create({
   },
 
   stepText: {
-    fontSize: 18,
-    lineHeight: 25,
+    fontSize: 15,
+    lineHeight: 21,
     fontWeight: '700',
   },
 
