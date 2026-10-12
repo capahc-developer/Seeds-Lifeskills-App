@@ -231,10 +231,11 @@ export default function Skill() {
 
       <Pressable
         style={s.stepHelpCard}
+        accessibilityRole="button"
         onPress={() => router.push(`/skill/${skill.id}/step-help`)}
       >
         <View style={s.stepHelpIcon}>
-          <Ionicons name="sparkles-outline" size={23} color="#6B5BD2" />
+          <Ionicons name="sparkles-outline" size={23} color="#FFFFFF" />
         </View>
         <View style={{ flex: 1 }}>
           <Text style={s.stepHelpTitle}>Need help with a difficult step?</Text>
@@ -242,16 +243,9 @@ export default function Skill() {
             Ask AI to break a step into smaller actions or identify a missing micro-step.
           </Text>
         </View>
-        <Ionicons name="chevron-forward" size={20} color="#7B8794" />
+        <Ionicons name="chevron-forward" size={20} color="#FFFFFF" />
       </Pressable>
 
-      <Pressable
-        style={s.button}
-        onPress={() => router.push(`/skill/${skill.id}/strategies`)}
-      >
-        <Text style={s.buttonText}>View Strategies</Text>
-        <Ionicons name="arrow-forward" size={20} color="#FFF" />
-      </Pressable>
     </ScrollView>
   );
 }
@@ -374,9 +368,9 @@ const s = StyleSheet.create({
   stepHelpCard: {
     marginHorizontal: 16,
     marginBottom: 12,
-    backgroundColor: '#F7F4FF',
+    backgroundColor: '#6B5BD2',
     borderWidth: 1,
-    borderColor: '#E2DCF9',
+    borderColor: '#5C4BC6',
     padding: 15,
     borderRadius: 18,
     flexDirection: 'row',
@@ -387,18 +381,18 @@ const s = StyleSheet.create({
     width: 44,
     height: 44,
     borderRadius: 22,
-    backgroundColor: '#ECE7FF',
+    backgroundColor: '#8173E1',
     alignItems: 'center',
     justifyContent: 'center',
   },
   stepHelpTitle: {
-    color: '#3C326D',
+    color: '#FFFFFF',
     fontWeight: '800',
     fontSize: 15,
   },
   stepHelpText: {
     marginTop: 4,
-    color: '#716A89',
+    color: '#F1EEFF',
     fontSize: 12,
     lineHeight: 17,
   },
