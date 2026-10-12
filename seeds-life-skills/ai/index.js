@@ -427,7 +427,10 @@ exports.chatAssistant = onCall(
     }
 
     const db = getFirestore();
+    let studentContext = "";
+    let skillContext = "";
 
+    // Personalization is helpful, but Firestore failures should never block AI help.
     try {
       const studentSnapshot = await db
         .doc(`studentProfiles/${uid}`)
@@ -437,81 +440,7 @@ exports.chatAssistant = onCall(
         ? studentSnapshot.data()
         : {};
 
-      let skillContext = "";
-      const skillId =
-        typeof params.skillId === "string"
-          ? params.skillId.slice(0, 120)
-          : "";
-
-      if (skillId) {
-        const independentSkillTitles = {
-          "morning-routine": "Morning Routine",
-          "zip-winter-coat": "Zip Up a Winter Coat",
-          "cook-eggs": "Cook Eggs",
-          "shop": "Shop",
-          "brushing-teeth": "Brush Teeth",
-        };
-
-        const builtInSnapshot = await db
-          .doc(`skills/${skillId}`)
-          .get();
-
-        if (builtInSnapshot.exists) {
-          const skill = builtInSnapshot.data();
-          const customizationSnapshot = await db
-            .doc(
-              `users/${uid}/skillCustomizations/${skillId}`
-            )
-            .get();
-
-          const steps =
-            customizationSnapshot.exists &&
-            Array.isArray(customizationSnapshot.data().steps)
-              ? customizationSnapshot.data().steps
-              : Array.isArray(skill.steps)
-                ? skill.steps
-                : [];
-
-          skillContext = [
-            `Current skill: ${skill.title || skillId}`,
-            skill.subtitle ? `Skill summary: ${skill.subtitle}` : "",
-            skill.description
-              ? `Description: ${skill.description}`
-              : "",
-            steps.length
-              ? `Current steps: ${steps.join(" | ")}`
-              : "",
-          ]
-            .filter(Boolean)
-            .join("\n");
-        } else {
-          const customSnapshot = await db
-            .doc(`users/${uid}/customSkills/${skillId}`)
-            .get();
-
-          if (customSnapshot.exists) {
-            const skill = customSnapshot.data();
-            skillContext = [
-              `Current custom skill: ${skill.title || skillId}`,
-              skill.subtitle ? `Skill summary: ${skill.subtitle}` : "",
-              skill.description
-                ? `Description: ${skill.description}`
-                : "",
-              Array.isArray(skill.steps) && skill.steps.length
-                ? `Current steps: ${skill.steps.join(" | ")}`
-                : "",
-            ]
-              .filter(Boolean)
-              .join("\n");
-          } else if (independentSkillTitles[skillId]) {
-            skillContext =
-              `Current skill: ${independentSkillTitles[skillId]}\n` +
-              "The parent may be asking for help identifying a missing micro-step.";
-          }
-        }
-      }
-
-      const studentContext = [
+      studentContext = [
         student.name ? `Student name/nickname: ${student.name}` : "",
         student.age != null ? `Age: ${student.age}` : "",
         student.strengths
@@ -526,68 +455,177 @@ exports.chatAssistant = onCall(
       ]
         .filter(Boolean)
         .join("\n");
-
-      const openai = new OpenAI({
-        apiKey: openaiApiKey.value(),
+    } catch (profileError) {
+      console.warn("Assistant profile lookup failed:", {
+        code: profileError?.code,
+        message: profileError?.message,
       });
+    }
 
-      const response = await openai.responses.create({
-        model: "gpt-5-mini",
-        instructions: [
-          "You are the SEEDS Independent Steps caregiver assistant.",
-          "Help parents and caregivers teach practical life skills to children and teens.",
-          "Be supportive, concrete, concise, and action-oriented.",
-          "When a caregiver says the student is stuck, first identify the transition between the surrounding steps and suggest one or more very small observable actions that may be missing.",
-          "Break tasks into small physical or observable actions when helpful.",
-          "For each suggested micro-step, explain briefly what the caregiver should look for before moving on.",
-          "Suggest visual supports, prompting, choices, repetition, reinforcement, and ways to reduce task difficulty when appropriate.",
-          "Use the student's profile and current skill context only when relevant.",
-          "Never diagnose a medical, psychological, developmental, or educational condition.",
-          "Do not present your answer as professional medical, therapeutic, legal, or emergency advice.",
-          "If there is immediate danger or a medical emergency, tell the caregiver to contact appropriate emergency/professional help.",
-          "Do not shame the student or caregiver.",
-          "If the user asks to modify an app skill, explain the suggested change clearly but do not claim it was saved unless the app actually saves it.",
-          "Prefer short paragraphs and numbered steps over long essays.",
-        ].join("\n"),
-        input: [
-          {
-            role: "user",
-            content: [
-              screenPath
-                ? `Current app screen: ${screenPath}`
-                : "",
-              studentContext
-                ? `Student profile:\n${studentContext}`
-                : "Student profile: not provided.",
-              skillContext
-                ? `Screen skill context:\n${skillContext}`
-                : "",
-              "Conversation:",
-              ...messages.map(
-                (item) =>
-                  `${item.role === "user" ? "Caregiver" : "Assistant"}: ${item.content}`
-              ),
-            ]
-              .filter(Boolean)
-              .join("\n\n"),
+    const skillId =
+      typeof params.skillId === "string"
+        ? params.skillId.slice(0, 120)
+        : "";
+
+    if (skillId) {
+      const independentSkillTitles = {
+        "morning-routine": "Morning Routine",
+        "zip-winter-coat": "Zip Up a Winter Coat",
+        "cook-eggs": "Cook Eggs",
+        "shop": "Shop",
+        "brushing-teeth": "Brush Teeth",
+      };
+
+      try {
+        const builtInSnapshot = await db
+          .doc(`skills/${skillId}`)
+          .get();
+
+        if (builtInSnapshot.exists) {
+          const skill = builtInSnapshot.data();
+          let steps = Array.isArray(skill.steps)
+            ? skill.steps
+            : [];
+
+          try {
+            const customizationSnapshot = await db
+              .doc(
+                `users/${uid}/skillCustomizations/${skillId}`
+              )
+              .get();
+
+            if (
+              customizationSnapshot.exists &&
+              Array.isArray(customizationSnapshot.data().steps)
+            ) {
+              steps = customizationSnapshot.data().steps;
+            }
+          } catch (customizationError) {
+            console.warn("Assistant customization lookup failed:", {
+              code: customizationError?.code,
+              message: customizationError?.message,
+            });
+          }
+
+          skillContext = [
+            `Current skill: ${skill.title || skillId}`,
+            skill.subtitle ? `Skill summary: ${skill.subtitle}` : "",
+            skill.description
+              ? `Description: ${skill.description}`
+              : "",
+            steps.length
+              ? `Current steps: ${steps.join(" | ")}`
+              : "",
+          ]
+            .filter(Boolean)
+            .join("\n");
+        }
+      } catch (skillError) {
+        console.warn("Assistant skill lookup failed:", {
+          code: skillError?.code,
+          message: skillError?.message,
+        });
+      }
+
+      if (!skillContext && independentSkillTitles[skillId]) {
+        skillContext =
+          `Current skill: ${independentSkillTitles[skillId]}\n` +
+          "The caregiver may be asking for help identifying a missing micro-step.";
+      }
+    }
+
+    const instructions = [
+      "You are the SEEDS Independent Steps caregiver assistant.",
+      "Help parents and caregivers teach practical life skills to children and teens.",
+      "Be supportive, concrete, concise, and action-oriented.",
+      "When a caregiver says the student is stuck, identify the transition between surrounding steps and suggest one or more very small observable actions that may be missing.",
+      "Break tasks into small physical or observable actions when helpful.",
+      "For each suggested micro-step, explain briefly what the caregiver should look for before moving on.",
+      "Suggest visual supports, prompting, choices, repetition, reinforcement, and ways to reduce task difficulty when appropriate.",
+      "Use the student's profile and current skill context only when relevant.",
+      "Never diagnose a medical, psychological, developmental, or educational condition.",
+      "Do not present your answer as professional medical, therapeutic, legal, or emergency advice.",
+      "Do not shame the student or caregiver.",
+      "Prefer short paragraphs and numbered steps over long essays.",
+    ].join("\n");
+
+    const prompt = [
+      screenPath ? `Current app screen: ${screenPath}` : "",
+      studentContext
+        ? `Student profile:\n${studentContext}`
+        : "Student profile: not available.",
+      skillContext
+        ? `Screen skill context:\n${skillContext}`
+        : "",
+      "Conversation:",
+      ...messages.map(
+        (item) =>
+          `${item.role === "user" ? "Caregiver" : "Assistant"}: ${item.content}`
+      ),
+    ]
+      .filter(Boolean)
+      .join("\n\n");
+
+    try {
+      const response = await fetch(
+        "https://api.openai.com/v1/responses",
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${openaiApiKey.value()}`,
           },
-        ],
-        max_output_tokens: 500,
-      });
+          body: JSON.stringify({
+            model: "gpt-5-mini",
+            store: false,
+            instructions,
+            input: prompt,
+            max_output_tokens: 700,
+          }),
+          signal: AbortSignal.timeout(45000),
+        }
+      );
 
-      const answer = response.output_text?.trim();
+      const bodyText = await response.text();
+
+      if (!response.ok) {
+        console.error("OpenAI API error:", {
+          status: response.status,
+          body: bodyText.slice(0, 1200),
+        });
+
+        throw new HttpsError(
+          "unavailable",
+          "The AI service could not answer right now.",
+          { status: response.status }
+        );
+      }
+
+      let body;
+      try {
+        body = JSON.parse(bodyText);
+      } catch (parseError) {
+        throw new Error("OpenAI returned invalid JSON.");
+      }
+
+      const answer =
+        typeof body.output_text === "string"
+          ? body.output_text.trim()
+          : body.output
+              ?.flatMap((item) => item.content || [])
+              .find((part) => part.type === "output_text")
+              ?.text?.trim() || "";
 
       if (!answer) {
         throw new Error("OpenAI returned an empty response.");
       }
 
-      return {
-        answer,
-      };
+      return { answer };
     } catch (error) {
-      console.error("Chat assistant error:", {
+      console.error("Chat assistant backend error:", {
         code: error?.code,
         message: error?.message,
+        stack: error?.stack,
       });
 
       if (error instanceof HttpsError) {
@@ -595,8 +633,12 @@ exports.chatAssistant = onCall(
       }
 
       throw new HttpsError(
-        "internal",
-        "The assistant could not answer right now."
+        "unavailable",
+        "The assistant is unavailable right now. Please try again.",
+        {
+          backendCode: error?.code || null,
+          backendMessage: error?.message || "unknown error",
+        }
       );
     }
   }
