@@ -183,7 +183,7 @@ export default function SkillStepEditor() {
           'users',
           user.uid,
           'skillCustomizations',
-          String(skillId)
+          String(skillId) === 'zip-winter-coat' ? 'zip-up-a-winter-coat' : String(skillId)
         )
       );
       setSteps(baseSteps);
