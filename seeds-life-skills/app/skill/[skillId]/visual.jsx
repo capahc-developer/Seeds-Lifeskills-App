@@ -95,8 +95,8 @@ const backgroundThemes = [
 const templates = [
   {
     id: 'photo-left',
-    title: 'Photo + Text',
-    subtitle: 'Photo on the left, words on the right',
+    title: 'Number + Text + Photo',
+    subtitle: 'Number on the left, words in the middle, photo on the right',
     icon: 'albums-outline',
   },
   {
@@ -464,11 +464,11 @@ export default function VisualTemplateBuilder() {
         return `
           <section class="stepCard row">
             <div class="stepNumber">${index + 1}</div>
-            ${photoBlock}
             <div class="stepCopy">
               <div class="stepLabel">STEP ${index + 1}</div>
               <div class="stepText">${escapeHtml(step)}</div>
             </div>
+            ${photoBlock}
           </section>
         `;
       })
@@ -562,25 +562,31 @@ export default function VisualTemplateBuilder() {
             .steps {
               display: flex;
               flex-direction: column;
-              gap: 14px;
+              gap: 18px;
             }
 
             .stepCard {
               width: 100%;
+              min-height: 2.18in;
               background: rgba(255,255,255,0.94);
               border: 2px solid ${theme.border};
               border-radius: 22px;
-              padding: 15px;
+              padding: 18px;
               page-break-inside: avoid;
               break-inside: avoid;
               box-shadow: 0 5px 14px rgba(31,42,55,0.08);
+            }
+
+            .stepCard:nth-child(3n + 1):not(:first-child) {
+              page-break-before: always;
+              break-before: page;
             }
 
             .stepCard.row {
               display: flex;
               flex-direction: row;
               align-items: center;
-              gap: 15px;
+              gap: 18px;
             }
 
             .stepCard.top {
@@ -597,13 +603,13 @@ export default function VisualTemplateBuilder() {
             }
 
             .stepNumber {
-              width: 38px;
-              height: 38px;
-              min-width: 38px;
+              width: 46px;
+              height: 46px;
+              min-width: 46px;
               border-radius: 50%;
               background: ${theme.accent};
               color: #ffffff;
-              font-size: 17px;
+              font-size: 20px;
               font-weight: 800;
               display: flex;
               align-items: center;
@@ -625,14 +631,14 @@ export default function VisualTemplateBuilder() {
 
             .stepText {
               color: ${theme.text};
-              font-size: 18px;
+              font-size: 21px;
               line-height: 1.35;
               font-weight: 750;
             }
 
             .photo {
-              width: 1.62in;
-              height: 1.18in;
+              width: 2.42in;
+              height: 1.78in;
               flex-shrink: 0;
               object-fit: cover;
               border-radius: 15px;
@@ -642,7 +648,7 @@ export default function VisualTemplateBuilder() {
 
             .stepCard.top .photo {
               width: 100%;
-              height: 2.45in;
+              height: 3.25in;
             }
 
             .placeholder {
@@ -1035,6 +1041,21 @@ export default function VisualTemplateBuilder() {
               </Text>
             </View>
 
+            <View style={s.stepTextWrap}>
+              <Text style={[s.stepText, { color: selectedBackground.text }]}>
+                {step}
+              </Text>
+              {templateId !== 'text-only' && photo?.uri && (
+                <Pressable onPress={() => choosePhoto(index)}>
+                  <Text
+                    style={[s.changePhotoText, { color: selectedBackground.accent }]}
+                  >
+                    Change photo
+                  </Text>
+                </Pressable>
+              )}
+            </View>
+
             {templateId !== 'text-only' && (
               <View
                 style={[
@@ -1065,7 +1086,7 @@ export default function VisualTemplateBuilder() {
                   >
                     <Ionicons
                       name="image-outline"
-                      size={26}
+                      size={30}
                       color={selectedBackground.muted}
                     />
                     <Text
@@ -1080,21 +1101,6 @@ export default function VisualTemplateBuilder() {
                 )}
               </View>
             )}
-
-            <View style={s.stepTextWrap}>
-              <Text style={[s.stepText, { color: selectedBackground.text }]}>
-                {step}
-              </Text>
-              {templateId !== 'text-only' && photo?.uri && (
-                <Pressable onPress={() => choosePhoto(index)}>
-                  <Text
-                    style={[s.changePhotoText, { color: selectedBackground.accent }]}
-                  >
-                    Change photo
-                  </Text>
-                </Pressable>
-              )}
-            </View>
           </View>
         );
       })}
@@ -1356,8 +1362,8 @@ const s = StyleSheet.create({
   },
 
   photoWrap: {
-    width: 112,
-    height: 96,
+    width: 145,
+    height: 120,
     borderRadius: 14,
     overflow: 'hidden',
     position: 'relative',
@@ -1365,7 +1371,7 @@ const s = StyleSheet.create({
 
   photoWrapTop: {
     width: '100%',
-    height: 210,
+    height: 260,
   },
 
   photo: {
