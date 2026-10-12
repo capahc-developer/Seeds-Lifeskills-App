@@ -619,19 +619,21 @@ export default function VisualTemplateBuilder() {
             }
 
             .page {
-              height: 11in;
+              height: 10.98in;
               width: 8.5in;
               padding: 0.38in;
               position: relative;
               overflow: hidden;
-              page-break-after: always;
-              break-after: page;
+              page-break-before: always;
+              break-before: page;
+              page-break-inside: avoid;
+              break-inside: avoid;
               ${backgroundCss}
             }
 
-            .page:last-child {
-              page-break-after: auto;
-              break-after: auto;
+            .page:first-child {
+              page-break-before: auto;
+              break-before: auto;
             }
 
             .headerCard {
@@ -694,7 +696,8 @@ export default function VisualTemplateBuilder() {
 
             .stepCard {
               width: 100%;
-              min-height: 1.65in;
+              height: 1.55in;
+              min-height: 1.55in;
               background: rgba(255,255,255,0.82);
               border: 2px solid ${theme.border};
               border-radius: 18px;
@@ -768,9 +771,14 @@ export default function VisualTemplateBuilder() {
               background: ${theme.placeholderBg};
             }
 
+            .stepCard.top {
+              height: 3.15in;
+              min-height: 3.15in;
+            }
+
             .stepCard.top .photo {
               width: 100%;
-              height: 2.0in;
+              height: 1.6in;
             }
 
             .placeholder {
