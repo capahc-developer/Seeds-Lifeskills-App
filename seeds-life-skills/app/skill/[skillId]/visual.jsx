@@ -14,7 +14,7 @@ import {
 import { router, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { doc, getDoc } from 'firebase/firestore';
-import { getDownloadURL, listAll, ref as storageRef } from 'firebase/storage';
+import { getBytes, getDownloadURL, listAll, ref as storageRef } from 'firebase/storage';
 import * as ImagePicker from 'expo-image-picker';
 import * as Print from 'expo-print';
 import * as Sharing from 'expo-sharing';
@@ -137,6 +137,33 @@ function titleFromFileName(fileName) {
 
 function isImageFile(fileName) {
   return /\.(png|jpe?g|webp)$/i.test(String(fileName || ''));
+}
+
+function mimeTypeFromFileName(fileName) {
+  const name = String(fileName || '').toLowerCase();
+  if (name.endsWith('.png')) return 'image/png';
+  if (name.endsWith('.webp')) return 'image/webp';
+  return 'image/jpeg';
+}
+
+function bytesToBase64(bytes) {
+  const alphabet =
+    'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/';
+  let output = '';
+
+  for (let index = 0; index < bytes.length; index += 3) {
+    const a = bytes[index];
+    const b = index + 1 < bytes.length ? bytes[index + 1] : 0;
+    const d = index + 2 < bytes.length ? bytes[index + 2] : 0;
+    const triple = (a << 16) | (b << 8) | d;
+
+    output += alphabet[(triple >> 18) & 63];
+    output += alphabet[(triple >> 12) & 63];
+    output += index + 1 < bytes.length ? alphabet[(triple >> 6) & 63] : '=';
+    output += index + 2 < bytes.length ? alphabet[triple & 63] : '=';
+  }
+
+  return output;
 }
 
 export default function VisualTemplateBuilder() {
@@ -354,146 +381,341 @@ export default function VisualTemplateBuilder() {
     });
   }
 
-  function buildHtml() {
+  async function getPrintableBackgroundDataUri() {
+    if (!selectedBackground?.storagePath) return '';
+
+    try {
+      const bytes = await getBytes(
+        storageRef(storage, selectedBackground.storagePath),
+        12 * 1024 * 1024
+      );
+
+      return `data:${mimeTypeFromFileName(
+        selectedBackground.storagePath
+      )};base64,${bytesToBase64(new Uint8Array(bytes))}`;
+    } catch (error) {
+      console.warn(
+        'Could not embed Firebase background in printable template:',
+        error?.code || error?.message || error
+      );
+      return '';
+    }
+  }
+
+  function buildPrintableHtml(backgroundDataUri = '') {
     const theme = selectedBackground;
+    const title = escapeHtml(skill?.title || 'Visual Schedule');
+    const templateTitle = escapeHtml(selectedTemplate?.title || 'Visual Template');
+
+    const backgroundCss = backgroundDataUri
+      ? `
+          background-image:
+            linear-gradient(rgba(255,255,255,0.30), rgba(255,255,255,0.30)),
+            url("${backgroundDataUri}");
+          background-size: cover;
+          background-position: center;
+          background-repeat: no-repeat;
+        `
+      : `background-color: ${theme.pageBg};`;
 
     const rows = steps
       .map((step, index) => {
-        const photo = photos[index];
-        const dataUri = photoDataUri(photo);
+        const dataUri = photoDataUri(photos[index]);
 
-        const imageBlock =
+        const photoBlock =
           templateId === 'text-only'
-            ? `<div class="photo placeholder">Add photo here</div>`
+            ? `
+                <div class="photo placeholder">
+                  <div class="placeholderIcon">＋</div>
+                  <div>Add a photo here</div>
+                </div>
+              `
             : dataUri
-              ? `<img class="photo" src="${dataUri}" />`
-              : `<div class="photo placeholder">Add photo here</div>`;
+              ? `<img class="photo" src="${dataUri}" alt="Step ${index + 1}" />`
+              : `
+                  <div class="photo placeholder">
+                    <div class="placeholderIcon">＋</div>
+                    <div>Add a photo here</div>
+                  </div>
+                `;
 
         if (templateId === 'photo-top') {
           return `
-            <div class="step top">
-              <div class="number">${index + 1}</div>
-              ${imageBlock}
+            <section class="stepCard top">
+              <div class="stepHeading">
+                <div class="stepNumber">${index + 1}</div>
+                <div class="stepLabel">STEP ${index + 1}</div>
+              </div>
+              ${photoBlock}
               <div class="stepText">${escapeHtml(step)}</div>
-            </div>
+            </section>
           `;
         }
 
         return `
-          <div class="step row">
-            <div class="number">${index + 1}</div>
-            ${imageBlock}
-            <div class="stepText">${escapeHtml(step)}</div>
-          </div>
+          <section class="stepCard row">
+            <div class="stepNumber">${index + 1}</div>
+            ${photoBlock}
+            <div class="stepCopy">
+              <div class="stepLabel">STEP ${index + 1}</div>
+              <div class="stepText">${escapeHtml(step)}</div>
+            </div>
+          </section>
         `;
       })
       .join('');
 
     return `
+      <!doctype html>
       <html>
         <head>
+          <meta charset="utf-8" />
           <meta name="viewport" content="width=device-width, initial-scale=1.0" />
           <style>
-            * { box-sizing: border-box; }
-            body {
-              font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+            @page {
+              size: letter portrait;
               margin: 0;
-              padding: 26px;
+            }
+
+            * {
+              box-sizing: border-box;
+              -webkit-print-color-adjust: exact !important;
+              print-color-adjust: exact !important;
+            }
+
+            html, body {
+              margin: 0;
+              padding: 0;
+              font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Arial, sans-serif;
               color: ${theme.text};
-              background-color: ${theme.pageBg};
-              ${theme.imageUrl ? `background-image: linear-gradient(rgba(255,255,255,0.72), rgba(255,255,255,0.72)), url("${theme.imageUrl}"); background-size: cover; background-position: center; background-attachment: fixed;` : ''}
+              background: ${theme.pageBg};
             }
-            h1 { text-align: center; color: ${theme.accent}; margin: 0 0 8px; }
-            .sub {
-              text-align: center;
-              color: ${theme.muted};
-              margin-bottom: 24px;
+
+            .page {
+              min-height: 11in;
+              width: 100%;
+              padding: 0.38in;
+              ${backgroundCss}
             }
-            .privacy {
-              text-align: center;
-              font-size: 11px;
-              color: ${theme.muted};
-              margin-bottom: 18px;
-            }
-            .step {
-              page-break-inside: avoid;
+
+            .headerCard {
+              background: rgba(255,255,255,0.93);
               border: 2px solid ${theme.border};
-              background: ${theme.cardBg};
-              border-radius: 18px;
-              padding: 16px;
-              margin: 0 0 16px;
-              position: relative;
-              min-height: 150px;
+              border-radius: 26px;
+              padding: 22px 24px;
+              margin-bottom: 18px;
+              box-shadow: 0 7px 18px rgba(31,42,55,0.10);
+              page-break-inside: avoid;
             }
-            .step.row {
+
+            .eyebrow {
+              display: inline-block;
+              padding: 6px 11px;
+              border-radius: 999px;
+              background: ${theme.accentSoft};
+              color: ${theme.accent};
+              font-size: 10px;
+              font-weight: 800;
+              letter-spacing: 1.15px;
+              text-transform: uppercase;
+            }
+
+            h1 {
+              margin: 10px 0 5px;
+              font-size: 28px;
+              line-height: 1.15;
+              color: ${theme.text};
+            }
+
+            .headerSub {
+              color: ${theme.muted};
+              font-size: 13px;
+              line-height: 1.5;
+            }
+
+            .chips {
               display: flex;
-              align-items: center;
-              gap: 18px;
+              gap: 8px;
+              flex-wrap: wrap;
+              margin-top: 13px;
             }
-            .step.top {
+
+            .chip {
+              border-radius: 999px;
+              border: 1px solid ${theme.border};
+              background: rgba(255,255,255,0.90);
+              padding: 6px 10px;
+              color: ${theme.text};
+              font-size: 10px;
+              font-weight: 700;
+            }
+
+            .steps {
               display: flex;
               flex-direction: column;
-              align-items: stretch;
+              gap: 14px;
+            }
+
+            .stepCard {
+              width: 100%;
+              background: rgba(255,255,255,0.94);
+              border: 2px solid ${theme.border};
+              border-radius: 22px;
+              padding: 15px;
+              page-break-inside: avoid;
+              break-inside: avoid;
+              box-shadow: 0 5px 14px rgba(31,42,55,0.08);
+            }
+
+            .stepCard.row {
+              display: flex;
+              flex-direction: row;
+              align-items: center;
+              gap: 15px;
+            }
+
+            .stepCard.top {
+              display: flex;
+              flex-direction: column;
               gap: 12px;
             }
-            .number {
+
+            .stepHeading {
+              display: flex;
+              flex-direction: row;
+              align-items: center;
+              gap: 9px;
+            }
+
+            .stepNumber {
               width: 38px;
               height: 38px;
               min-width: 38px;
-              border-radius: 19px;
-              background: ${theme.accentSoft};
-              color: ${theme.accent};
+              border-radius: 50%;
+              background: ${theme.accent};
+              color: #ffffff;
+              font-size: 17px;
               font-weight: 800;
               display: flex;
               align-items: center;
               justify-content: center;
-              font-size: 18px;
             }
+
+            .stepCopy {
+              flex: 1;
+              min-width: 0;
+            }
+
+            .stepLabel {
+              color: ${theme.accent};
+              font-size: 9px;
+              font-weight: 800;
+              letter-spacing: 1px;
+              margin-bottom: 5px;
+            }
+
+            .stepText {
+              color: ${theme.text};
+              font-size: 18px;
+              line-height: 1.35;
+              font-weight: 750;
+            }
+
             .photo {
-              width: 180px;
-              height: 130px;
+              width: 1.62in;
+              height: 1.18in;
+              flex-shrink: 0;
               object-fit: cover;
-              border-radius: 12px;
+              border-radius: 15px;
+              border: 1px solid ${theme.border};
               background: ${theme.placeholderBg};
             }
-            .step.top .photo {
+
+            .stepCard.top .photo {
               width: 100%;
-              height: 240px;
+              height: 2.45in;
             }
+
             .placeholder {
               border: 2px dashed ${theme.placeholderBorder};
+              background: rgba(255,255,255,0.65);
               color: ${theme.muted};
-              background: ${theme.placeholderBg};
               display: flex;
+              flex-direction: column;
               align-items: center;
               justify-content: center;
               text-align: center;
-              font-size: 14px;
-            }
-            .stepText {
-              flex: 1;
-              font-size: 22px;
-              line-height: 1.35;
+              font-size: 11px;
               font-weight: 700;
+            }
+
+            .placeholderIcon {
+              width: 28px;
+              height: 28px;
+              border-radius: 50%;
+              margin-bottom: 6px;
+              background: ${theme.accentSoft};
+              color: ${theme.accent};
+              display: flex;
+              align-items: center;
+              justify-content: center;
+              font-size: 20px;
+            }
+
+            .footer {
+              margin-top: 17px;
+              padding: 11px 14px;
+              border-radius: 15px;
+              background: rgba(255,255,255,0.88);
+              border: 1px solid ${theme.border};
+              color: ${theme.muted};
+              font-size: 9px;
+              line-height: 1.45;
+              text-align: center;
+              page-break-inside: avoid;
             }
           </style>
         </head>
         <body>
-          <h1>${escapeHtml(skill?.title || 'Visual Schedule')}</h1>
-          <div class="sub">Independent Steps visual schedule</div>
-          <div class="privacy">Photos in this template are processed locally on this device and are not uploaded to Firebase.</div>
-          ${rows}
+          <main class="page">
+            <header class="headerCard">
+              <div class="eyebrow">Independent Steps</div>
+              <h1>${title}</h1>
+              <div class="headerSub">
+                Follow one step at a time. Keep the page nearby while practicing.
+              </div>
+              <div class="chips">
+                <div class="chip">${steps.length} steps</div>
+                <div class="chip">${templateTitle}</div>
+                <div class="chip">${escapeHtml(theme.title || 'Background')}</div>
+              </div>
+            </header>
+
+            <div class="steps">
+              ${rows}
+            </div>
+
+            <footer class="footer">
+              Caregiver-selected photos stay on the device and are not uploaded to Firebase.
+            </footer>
+          </main>
         </body>
       </html>
     `;
   }
 
+  async function createPrintableHtml() {
+    const backgroundDataUri = await getPrintableBackgroundDataUri();
+    return buildPrintableHtml(backgroundDataUri);
+  }
+
   async function printTemplate() {
     try {
       setWorking(true);
-      await Print.printAsync({ html: buildHtml() });
+      const html = await createPrintableHtml();
+      await Print.printAsync({ html });
     } catch (error) {
-      console.error('Print error:', error);
+      console.error('Print template error:', error);
       Alert.alert('Could not print', 'Please try again.');
     } finally {
       setWorking(false);
@@ -503,8 +725,10 @@ export default function VisualTemplateBuilder() {
   async function shareTemplate() {
     try {
       setWorking(true);
+      const html = await createPrintableHtml();
+
       const result = await Print.printToFileAsync({
-        html: buildHtml(),
+        html,
         base64: false,
       });
 
@@ -513,15 +737,16 @@ export default function VisualTemplateBuilder() {
         Alert.alert(
           'Sharing unavailable',
           Platform.OS === 'web'
-            ? 'Local PDF sharing is not available in this browser.'
-            : 'Sharing is not available on this device.'
+            ? 'PDF sharing is not available in this browser.'
+            : 'PDF sharing is not available on this device.'
         );
         return;
       }
 
       await Sharing.shareAsync(result.uri, {
         mimeType: 'application/pdf',
-        dialogTitle: `${skill?.title || 'Skill'} visual schedule`,
+        dialogTitle: `${skill?.title || 'Skill'} visual template`,
+        UTI: 'com.adobe.pdf',
       });
     } catch (error) {
       console.error('Share template error:', error);
