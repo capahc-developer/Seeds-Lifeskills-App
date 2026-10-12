@@ -881,12 +881,124 @@ export default function VisualTemplateBuilder() {
     return true;
   }
 
+  // Browser PDFs are drawn directly onto independent PDF pages. This avoids
+  // Chrome's HTML pagination, which was splitting cards and stretching artwork.
+  async function createWebPdf() {
+    const { PDFDocument, StandardFonts, rgb } = await import('pdf-lib');
+    const pdf = await PDFDocument.create();
+    const regular = await pdf.embedFont(StandardFonts.Helvetica);
+    const bold = await pdf.embedFont(StandardFonts.HelveticaBold);
+    const W = 612, H = 792, margin = 28;
+    const theme = selectedBackground;
+    const hex = (value) => {
+      const h = String(value || '#FFFFFF').replace('#', '');
+      return rgb(parseInt(h.slice(0, 2), 16) / 255, parseInt(h.slice(2, 4), 16) / 255, parseInt(h.slice(4, 6), 16) / 255);
+    };
+    const textColor = hex(theme.text);
+    const accent = hex(theme.accent);
+    const wrap = (text, font, size, width) => {
+      const words = String(text || '').replace(/\s+/g, ' ').trim().split(' ');
+      const lines = []; let line = '';
+      for (const word of words) {
+        const candidate = line ? line + ' ' + word : word;
+        if (line && font.widthOfTextAtSize(candidate, size) > width) {
+          lines.push(line); line = word;
+        } else line = candidate;
+      }
+      if (line) lines.push(line);
+      return lines;
+    };
+    const embed = async (dataUri) => {
+      if (!dataUri) return null;
+      const match = dataUri.match(/^data:([^;]+);base64,(.*)$/s);
+      if (!match) return null;
+      const bytes = Uint8Array.from(atob(match[2]), c => c.charCodeAt(0));
+      return /png/i.test(match[1]) ? pdf.embedPng(bytes) : pdf.embedJpg(bytes);
+    };
+    const backgroundUri = await getPrintableBackgroundDataUri();
+    const background = await embed(backgroundUri);
+    const photoImages = {};
+    for (let i = 0; i < steps.length; i++) {
+      if (templateId !== 'text-only' && photos[i]?.base64) {
+        photoImages[i] = await embed(photoDataUri(photos[i]));
+      }
+    }
+    const firstCapacity = templateId === 'photo-top' ? 2 : 3;
+    const nextCapacity = templateId === 'photo-top' ? 2 : 4;
+    let start = 0, pageIndex = 0;
+    while (start < steps.length || pageIndex === 0) {
+      const count = pageIndex === 0 ? firstCapacity : nextCapacity;
+      const indices = Array.from({ length: Math.min(count, steps.length - start) }, (_, j) => start + j);
+      const page = pdf.addPage([W, H]);
+      page.drawRectangle({ x: 0, y: 0, width: W, height: H, color: hex(theme.pageBg) });
+      if (background) {
+        const scale = Math.max(W / background.width, H / background.height);
+        page.drawImage(background, {
+          x: (W - background.width * scale) / 2,
+          y: (H - background.height * scale) / 2,
+          width: background.width * scale,
+          height: background.height * scale,
+          opacity: 0.88,
+        });
+      }
+      let top = H - margin;
+      if (pageIndex === 0) {
+        page.drawRectangle({ x: margin, y: H - 130, width: W - margin * 2, height: 102, color: rgb(1, 1, 1), opacity: 0.94 });
+        page.drawText('INDEPENDENT STEPS', { x: margin + 16, y: H - 53, size: 9, font: bold, color: accent });
+        const titleLines = wrap(skill?.title || 'Visual Schedule', bold, 23, W - 2 * margin - 35);
+        titleLines.slice(0, 2).forEach((line, j) => page.drawText(line, { x: margin + 16, y: H - 81 - j * 23, size: 23, font: bold, color: textColor }));
+        page.drawText('Follow one step at a time.', { x: margin + 16, y: H - 117, size: 10, font: regular, color: hex(theme.muted) });
+        top = H - 147;
+      }
+      const cardHeight = templateId === 'photo-top' ? 244 : 137;
+      const gap = 14;
+      for (const index of indices) {
+        const y = top - cardHeight;
+        page.drawRectangle({ x: margin, y, width: W - margin * 2, height: cardHeight, color: rgb(1, 1, 1), opacity: 0.89, borderColor: hex(theme.border), borderWidth: 1 });
+        page.drawCircle({ x: margin + 24, y: templateId === 'photo-top' ? y + cardHeight - 24 : y + cardHeight / 2, size: 16, color: accent });
+        const num = String(index + 1);
+        page.drawText(num, { x: margin + 24 - bold.widthOfTextAtSize(num, 13) / 2, y: (templateId === 'photo-top' ? y + cardHeight - 28 : y + cardHeight / 2 - 5), size: 13, font: bold, color: rgb(1, 1, 1) });
+        const isTop = templateId === 'photo-top';
+        const photoX = isTop ? margin + 20 : W - margin - 128;
+        const photoY = isTop ? y + 42 : y + 17;
+        const photoW = isTop ? W - 2 * margin - 40 : 110;
+        const photoH = isTop ? 135 : 103;
+        const img = photoImages[index];
+        if (img) {
+          const scale = Math.max(photoW / img.width, photoH / img.height);
+          page.drawImage(img, { x: photoX, y: photoY, width: img.width * scale, height: img.height * scale });
+        } else {
+          page.drawRectangle({ x: photoX, y: photoY, width: photoW, height: photoH, color: hex(theme.placeholderBg), borderColor: hex(theme.placeholderBorder), borderWidth: 1 });
+          const hint = 'Add a photo here';
+          page.drawText(hint, { x: photoX + (photoW - regular.widthOfTextAtSize(hint, 9)) / 2, y: photoY + photoH / 2 - 4, size: 9, font: regular, color: hex(theme.muted) });
+        }
+        const textX = isTop ? margin + 52 : margin + 53;
+        const textWidth = isTop ? W - 2 * margin - 70 : photoX - textX - 15;
+        const labelY = isTop ? y + cardHeight - 28 : y + cardHeight / 2 + 17;
+        page.drawText('STEP ' + (index + 1), { x: textX, y: labelY, size: 8, font: bold, color: accent });
+        const description = personalizeStep(steps[index], firstName);
+        const lines = wrap(description, bold, isTop ? 14 : 13, textWidth);
+        const textY = isTop ? y + 26 : labelY - 22;
+        lines.slice(0, isTop ? 2 : 5).forEach((line, j) => {
+          page.drawText(line, { x: textX, y: textY - j * 18, size: isTop ? 14 : 13, font: bold, color: textColor });
+        });
+        top = y - gap;
+      }
+      const footer = 'For privacy considerations, photos are saved only on this device.';
+      page.drawText(footer, { x: (W - regular.widthOfTextAtSize(footer, 8)) / 2, y: 18, size: 8, font: regular, color: hex(theme.muted) });
+      start += indices.length;
+      pageIndex++;
+    }
+    const bytes = await pdf.save();
+    return URL.createObjectURL(new Blob([bytes], { type: 'application/pdf' }));
+  }
+
   async function printTemplate() {
     if (Platform.OS === 'web') {
       try {
         setWorking(true);
-        const html = await createPrintableHtml();
-        openWebPrintableDocument(html);
+        const url = await createWebPdf();
+        window.open(url, '_blank');
       } catch (error) {
         console.error('Print template error:', error);
         window.alert(error.message || 'Could not prepare the printable background.');
@@ -912,9 +1024,11 @@ export default function VisualTemplateBuilder() {
     if (Platform.OS === 'web') {
       try {
         setWorking(true);
-        const html = await createPrintableHtml();
-        const opened = openWebPrintableDocument(html);
-        if (opened) window.alert('In the print dialog, choose "Save as PDF" to save or share.');
+        const url = await createWebPdf();
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = (skill?.title || 'Visual Schedule').replace(/[^a-z0-9-]/gi, '_') + '.pdf';
+        link.click();
       } catch (error) {
         console.error('PDF template error:', error);
         window.alert(error.message || 'Could not prepare the PDF background.');
