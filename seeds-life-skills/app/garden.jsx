@@ -102,7 +102,7 @@ export default function GardenScreen() {
   return (
     <ScrollView style={s.page} contentContainerStyle={s.content}>
       <View style={s.header}>
-        <Pressable accessibilityRole="button" accessibilityLabel="Back" onPress={() => router.back()}>
+        <Pressable accessibilityRole="button" accessibilityLabel="Back" onPress={() => router.replace('/')}>
           <Ionicons name="chevron-back" size={27} color="#3B7851" />
         </Pressable>
         <Text style={s.title}>🌷 My Garden</Text>
