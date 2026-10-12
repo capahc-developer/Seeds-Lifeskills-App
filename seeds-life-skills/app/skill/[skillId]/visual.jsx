@@ -884,7 +884,10 @@ export default function VisualTemplateBuilder() {
   // Browser PDFs are drawn directly onto independent PDF pages. This avoids
   // Chrome's HTML pagination, which was splitting cards and stretching artwork.
   async function createWebPdf() {
+    let pdfStage = 'loading PDF library';
+    try {
     const { PDFDocument, StandardFonts, rgb } = await import('pdf-lib');
+    pdfStage = 'initializing PDF';
     const pdf = await PDFDocument.create();
     const regular = await pdf.embedFont(StandardFonts.Helvetica);
     const bold = await pdf.embedFont(StandardFonts.HelveticaBold);
@@ -915,10 +918,13 @@ export default function VisualTemplateBuilder() {
       const bytes = Uint8Array.from(atob(match[2]), c => c.charCodeAt(0));
       return /png/i.test(match[1]) ? pdf.embedPng(bytes) : pdf.embedJpg(bytes);
     };
+    pdfStage = 'loading background image';
     const backgroundUri = await getPrintableBackgroundDataUri();
+    pdfStage = 'embedding background image';
     const background = await embed(backgroundUri);
     const photoImages = {};
     for (let i = 0; i < steps.length; i++) {
+      pdfStage = 'embedding step photo ' + (i + 1);
       if (templateId !== 'text-only' && photos[i]?.base64) {
         photoImages[i] = await embed(photoDataUri(photos[i]));
       }
@@ -929,6 +935,7 @@ export default function VisualTemplateBuilder() {
     while (start < steps.length || pageIndex === 0) {
       const count = pageIndex === 0 ? firstCapacity : nextCapacity;
       const indices = Array.from({ length: Math.min(count, steps.length - start) }, (_, j) => start + j);
+      pdfStage = 'drawing page ' + (pageIndex + 1);
       const page = pdf.addPage([W, H]);
       page.drawRectangle({ x: 0, y: 0, width: W, height: H, color: hex(theme.pageBg) });
       if (background) {
@@ -989,8 +996,13 @@ export default function VisualTemplateBuilder() {
       start += indices.length;
       pageIndex++;
     }
+    pdfStage = 'saving PDF';
     const bytes = await pdf.save();
     return URL.createObjectURL(new Blob([bytes], { type: 'application/pdf' }));
+    } catch (error) {
+      console.error('PDF generation failed at:', pdfStage, error?.stack || error);
+      throw new Error('PDF failed while ' + pdfStage + ': ' + (error?.message || String(error)) + '\\n' + (error?.stack || '').split('\\n').slice(0, 3).join('\\n'));
+    }
   }
 
   async function printTemplate() {
