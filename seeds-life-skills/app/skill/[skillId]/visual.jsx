@@ -486,19 +486,30 @@ export default function VisualTemplateBuilder() {
   }
 
   async function getPrintableBackgroundDataUri() {
-    if (!selectedBackground?.storagePath) return '';
+    if (!selectedBackground?.imageUrl && !selectedBackground?.storagePath) return '';
 
+    // Use the same download URL as the app preview. getBytes() uses the Firebase
+    // SDK's direct storage request, which can fail due to browser CORS rules.
+    const imageUrl = selectedBackground.imageUrl ||
+      await getDownloadURL(storageRef(storage, selectedBackground.storagePath));
     try {
-      // Embed the image in the document: print/PDF renderers cannot reliably
-      // access remote Firebase Storage URLs (especially on iOS).
-      const bytes = await getBytes(
-        storageRef(storage, selectedBackground.storagePath),
-        25 * 1024 * 1024
-      );
-      return `data:${mimeTypeFromFileName(selectedBackground.storagePath)};base64,${bytesToBase64(new Uint8Array(bytes))}`;
+      const response = await fetch(imageUrl);
+      if (!response.ok) throw new Error('HTTP ' + response.status);
+      const blob = await response.blob();
+      const dataUri = await new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result);
+        reader.onerror = () => reject(reader.error || new Error('Image conversion failed'));
+        reader.readAsDataURL(blob);
+      });
+      return String(dataUri);
     } catch (error) {
-      console.error('Could not load the selected printable background:', error);
-      throw new Error('The selected background could not be included in the PDF. Please try again.');
+      console.error('Could not embed selected background:', error);
+      throw new Error(
+        'The selected background could not be loaded for PDF export (' +
+        (error?.message || 'network error') +
+        '). Check Firebase Storage CORS settings or try another background.'
+      );
     }
   }
 
