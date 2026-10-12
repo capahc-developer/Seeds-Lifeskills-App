@@ -886,7 +886,9 @@ export default function VisualTemplateBuilder() {
   async function createWebPdf() {
     let pdfStage = 'loading PDF library';
     try {
-    const { PDFDocument, StandardFonts, rgb } = await import('pdf-lib');
+    // Use the self-contained UMD build: Expo web's ESM resolver fails on pdf-lib's tslib helpers.
+    const pdfLibModule = await import('pdf-lib/dist/pdf-lib.js');
+    const { PDFDocument, StandardFonts, rgb } = pdfLibModule.default || pdfLibModule;
     pdfStage = 'initializing PDF';
     const pdf = await PDFDocument.create();
     const regular = await pdf.embedFont(StandardFonts.Helvetica);
