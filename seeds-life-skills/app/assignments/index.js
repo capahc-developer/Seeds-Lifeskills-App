@@ -10,7 +10,7 @@ import ScreenContainer from '../../components/ScreenContainer';
 import ValidationBanner from '../../components/ValidationBanner';
 import { practiceLogsForCurrentUser } from '../../lib/userData';
 import { auth, db } from '../../lib/firebase';
-import { independentStepsSkills } from '../../data/independentStepsSkills';
+
 
 const PURPLE = '#625CF5';
 const NAVY = '#152354';
@@ -66,25 +66,12 @@ export default function PracticeLogScreen() {
         const user = auth.currentUser;
         if (!user) throw new Error('Please sign in to view your skills.');
 
-        // Match My Skills: combine local SEEDS definitions, Firebase overrides,
-        // and the signed-in parent's custom skills.
-        const [builtInSnapshot, customSnapshot, logSnapshot] = await Promise.all([
-          getDocs(query(collection(db, 'skills'), where('active', '==', true))),
-          getDocs(collection(db, 'users', user.uid, 'customSkills')),
-          getDocs(query(practiceLogsForCurrentUser(), orderBy('createdAt', 'desc'))),
-        ]);
-        if (!active) return;
-
-        const firebaseSkills = new Map(
-          builtInSnapshot.docs.map((doc) => [doc.id, { id: doc.id, ...doc.data() }])
-        );
-        const builtIn = independentStepsSkills.map((skill) => ({
-          ...skill,
-          ...(firebaseSkills.get(skill.id) || {}),
-          id: skill.id,
-          title: firebaseSkills.get(skill.id)?.title || skill.title,
-          custom: false,
-        }));
+        // Official skills are managed in Firestore. Keep the historical
+        // duplicate hidden, but preserve all previously saved practice logs.
+        const builtIn = builtInSnapshot.docs
+          .filter((item) => item.id !== 'zip-winter-coat')
+          .map((item) => ({ id: item.id, ...item.data(), custom: false }))
+          .sort((a, b) => (a.order ?? 999) - (b.order ?? 999) || a.title.localeCompare(b.title));
         const custom = customSnapshot.docs
           .map((doc) => ({ id: doc.id, ...doc.data(), custom: true }))
           .sort((a, b) => (b.createdAt?.seconds ?? 0) - (a.createdAt?.seconds ?? 0));
