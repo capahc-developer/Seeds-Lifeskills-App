@@ -595,7 +595,8 @@ exports.chatAssistant = onCall(
             store: false,
             instructions,
             input: prompt,
-            max_output_tokens: 1400,\n            reasoning: { effort: "low" },
+            max_output_tokens: 1400,
+            reasoning: { effort: "low" },
           }),
           signal: AbortSignal.timeout(45000),
         }
