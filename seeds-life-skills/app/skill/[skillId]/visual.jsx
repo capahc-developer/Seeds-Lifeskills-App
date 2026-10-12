@@ -506,16 +506,11 @@ export default function VisualTemplateBuilder() {
     const theme = selectedBackground;
     const title = escapeHtml(skill?.title || 'Visual Schedule');
 
-    const backgroundCss = backgroundDataUri
-      ? `
-          background-image:
-            linear-gradient(rgba(255,255,255,0.12), rgba(255,255,255,0.12)),
-            url("${backgroundDataUri}");
-          background-size: cover;
-          background-position: center;
-          background-repeat: no-repeat;
-        `
-      : `background-color: ${theme.pageBg};`;
+    // Use a separate image element on EVERY sheet, rather than a CSS background
+    // on a potentially fragmented print container.
+    const backgroundMarkup = backgroundDataUri
+      ? `<img class="pageArtwork" src="${backgroundDataUri}" alt="" />`
+      : '';
 
     const rows = steps
       .map((step, index) => {
@@ -579,6 +574,8 @@ export default function VisualTemplateBuilder() {
     if (!pageGroups.length) pageGroups.push([]);
     const pages = pageGroups.map((group, pageIndex) => `
       <main class="page">
+        ${backgroundMarkup}
+        <div class="pageContent">
         ${pageIndex === 0 ? `
           <header class="headerCard">
             <div class="eyebrow">Independent Steps</div>
@@ -589,6 +586,7 @@ export default function VisualTemplateBuilder() {
           </header>` : ''}
         <div class="steps">${group.join('')}</div>
         <footer class="footer">For privacy considerations, photos are saved only on this device.</footer>
+        </div>
       </main>
     `).join('');
 
@@ -619,21 +617,36 @@ export default function VisualTemplateBuilder() {
             }
 
             .page {
-              height: 10.98in;
               width: 8.5in;
-              padding: 0.38in;
+              height: 11in;
               position: relative;
               overflow: hidden;
-              page-break-before: always;
-              break-before: page;
-              page-break-inside: avoid;
-              break-inside: avoid;
-              ${backgroundCss}
+              background-color: ${theme.pageBg};
+              page-break-after: always;
+              break-after: page;
             }
 
-            .page:first-child {
-              page-break-before: auto;
-              break-before: auto;
+            .page:last-child {
+              page-break-after: auto;
+              break-after: auto;
+            }
+
+            .pageArtwork {
+              position: absolute;
+              inset: 0;
+              width: 8.5in;
+              height: 11in;
+              object-fit: cover;
+              opacity: 0.88;
+              z-index: 0;
+            }
+
+            .pageContent {
+              position: relative;
+              z-index: 1;
+              width: 100%;
+              height: 100%;
+              padding: 0.38in;
             }
 
             .headerCard {
@@ -689,15 +702,14 @@ export default function VisualTemplateBuilder() {
             }
 
             .steps {
-              display: flex;
-              flex-direction: column;
-              gap: 12px;
+              display: block;
             }
 
             .stepCard {
               width: 100%;
               height: 1.55in;
               min-height: 1.55in;
+              margin-bottom: 0.13in;
               background: rgba(255,255,255,0.82);
               border: 2px solid ${theme.border};
               border-radius: 18px;
