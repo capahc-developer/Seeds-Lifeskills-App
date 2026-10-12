@@ -385,10 +385,19 @@ export default function VisualTemplateBuilder() {
     if (!selectedBackground?.storagePath) return '';
 
     try {
-      const bytes = await getBytes(
+      const downloadPromise = getBytes(
         storageRef(storage, selectedBackground.storagePath),
         12 * 1024 * 1024
       );
+
+      const timeoutPromise = new Promise((_, reject) => {
+        setTimeout(
+          () => reject(new Error('Background download timed out.')),
+          8000
+        );
+      });
+
+      const bytes = await Promise.race([downloadPromise, timeoutPromise]);
 
       return `data:${mimeTypeFromFileName(
         selectedBackground.storagePath
@@ -705,11 +714,58 @@ export default function VisualTemplateBuilder() {
   }
 
   async function createPrintableHtml() {
+    if (Platform.OS === 'web') {
+      return buildPrintableHtml(selectedBackground?.imageUrl || '');
+    }
+
     const backgroundDataUri = await getPrintableBackgroundDataUri();
     return buildPrintableHtml(backgroundDataUri);
   }
 
+  function openWebPrintableDocument(html) {
+    if (typeof window === 'undefined') return false;
+
+    const printWindow = window.open('', '_blank');
+
+    if (!printWindow) {
+      Alert.alert(
+        'Pop-up blocked',
+        'Allow pop-ups for this site, then try again.'
+      );
+      return false;
+    }
+
+    printWindow.document.open();
+    printWindow.document.write(html);
+    printWindow.document.close();
+
+    const startPrint = () => {
+      try {
+        printWindow.focus();
+        printWindow.print();
+      } catch (error) {
+        console.error('Browser print error:', error);
+      }
+    };
+
+    if (printWindow.document.readyState === 'complete') {
+      setTimeout(startPrint, 350);
+    } else {
+      printWindow.addEventListener('load', () => {
+        setTimeout(startPrint, 350);
+      });
+    }
+
+    return true;
+  }
+
   async function printTemplate() {
+    if (Platform.OS === 'web') {
+      const html = buildPrintableHtml(selectedBackground?.imageUrl || '');
+      openWebPrintableDocument(html);
+      return;
+    }
+
     try {
       setWorking(true);
       const html = await createPrintableHtml();
@@ -723,6 +779,19 @@ export default function VisualTemplateBuilder() {
   }
 
   async function shareTemplate() {
+    if (Platform.OS === 'web') {
+      const html = buildPrintableHtml(selectedBackground?.imageUrl || '');
+      const opened = openWebPrintableDocument(html);
+
+      if (opened) {
+        Alert.alert(
+          'Save or share as PDF',
+          'In the browser print dialog, choose “Save as PDF.” You can then share the saved PDF.'
+        );
+      }
+      return;
+    }
+
     try {
       setWorking(true);
       const html = await createPrintableHtml();
@@ -736,9 +805,7 @@ export default function VisualTemplateBuilder() {
       if (!available) {
         Alert.alert(
           'Sharing unavailable',
-          Platform.OS === 'web'
-            ? 'PDF sharing is not available in this browser.'
-            : 'PDF sharing is not available on this device.'
+          'PDF sharing is not available on this device.'
         );
         return;
       }
