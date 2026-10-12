@@ -17,7 +17,7 @@ import {
 } from 'firebase/firestore';
 
 import { auth, db } from '../lib/firebase';
-import { independentStepsSkills } from '../data/independentStepsSkills';
+
 
 const colors = ['#FFF0D7', '#E2F7EA', '#FFE5E8', '#EEE8FF', '#E3F7EA', '#E3F0FF'];
 
@@ -45,24 +45,10 @@ export default function YourSkills() {
         getDocs(collection(db, 'users', user.uid, 'customSkills')),
       ]);
 
-      const firebaseSkills = new Map(
-        builtInSnapshot.docs.map((item) => [
-          item.id,
-          { id: item.id, ...item.data(), custom: false },
-        ])
-      );
-
-      const loadedBuiltIn = independentStepsSkills.map((skill) => ({
-        ...skill,
-        ...(firebaseSkills.get(skill.id) || {}),
-        id: skill.id,
-        title: firebaseSkills.get(skill.id)?.title || skill.title,
-        subtitle: firebaseSkills.get(skill.id)?.subtitle || skill.subtitle,
-        icon: firebaseSkills.get(skill.id)?.icon || skill.icon,
-        videoUrl: firebaseSkills.get(skill.id)?.videoUrl || skill.videoUrl,
-        resourceUrl: firebaseSkills.get(skill.id)?.resourceUrl || skill.resourceUrl,
-        custom: false,
-      }));
+      const loadedBuiltIn = builtInSnapshot.docs
+        .filter((item) => item.id !== 'zip-winter-coat')
+        .map((item) => ({ id: item.id, ...item.data(), custom: false }))
+        .sort((a, b) => (a.order ?? 999) - (b.order ?? 999) || a.title.localeCompare(b.title));
 
       const loadedCustom = customSnapshot.docs
         .map((item) => ({ id: item.id, ...item.data(), custom: true }))
