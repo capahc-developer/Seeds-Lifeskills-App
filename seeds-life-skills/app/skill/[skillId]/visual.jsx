@@ -489,29 +489,16 @@ export default function VisualTemplateBuilder() {
     if (!selectedBackground?.storagePath) return '';
 
     try {
-      const downloadPromise = getBytes(
+      // Embed the image in the document: print/PDF renderers cannot reliably
+      // access remote Firebase Storage URLs (especially on iOS).
+      const bytes = await getBytes(
         storageRef(storage, selectedBackground.storagePath),
-        12 * 1024 * 1024
+        25 * 1024 * 1024
       );
-
-      const timeoutPromise = new Promise((_, reject) => {
-        setTimeout(
-          () => reject(new Error('Background download timed out.')),
-          8000
-        );
-      });
-
-      const bytes = await Promise.race([downloadPromise, timeoutPromise]);
-
-      return `data:${mimeTypeFromFileName(
-        selectedBackground.storagePath
-      )};base64,${bytesToBase64(new Uint8Array(bytes))}`;
+      return `data:${mimeTypeFromFileName(selectedBackground.storagePath)};base64,${bytesToBase64(new Uint8Array(bytes))}`;
     } catch (error) {
-      console.warn(
-        'Could not embed Firebase background in printable template:',
-        error?.code || error?.message || error
-      );
-      return '';
+      console.error('Could not load the selected printable background:', error);
+      throw new Error('The selected background could not be included in the PDF. Please try again.');
     }
   }
 
@@ -818,24 +805,15 @@ export default function VisualTemplateBuilder() {
   }
 
   async function createPrintableHtml() {
-    if (Platform.OS === 'web') {
-      return buildPrintableHtml(selectedBackground?.imageUrl || '');
-    }
-
     const backgroundDataUri = await getPrintableBackgroundDataUri();
     return buildPrintableHtml(backgroundDataUri);
   }
 
   function openWebPrintableDocument(html) {
     if (typeof window === 'undefined') return false;
-
     const printWindow = window.open('', '_blank');
-
     if (!printWindow) {
-      Alert.alert(
-        'Pop-up blocked',
-        'Allow pop-ups for this site, then try again.'
-      );
+      window.alert('Allow pop-ups for this site, then try again.');
       return false;
     }
 
@@ -852,21 +830,30 @@ export default function VisualTemplateBuilder() {
       }
     };
 
-    if (printWindow.document.readyState === 'complete') {
-      setTimeout(startPrint, 350);
-    } else {
-      printWindow.addEventListener('load', () => {
-        setTimeout(startPrint, 350);
+    // Wait for embedded images and layout before invoking the print dialog.
+    const images = Array.from(printWindow.document.images);
+    Promise.all(images.map((img) => {
+      if (img.complete) return Promise.resolve();
+      return new Promise((resolve) => {
+        img.addEventListener('load', resolve, { once: true });
+        img.addEventListener('error', resolve, { once: true });
       });
-    }
-
+    })).then(() => setTimeout(startPrint, 400));
     return true;
   }
 
   async function printTemplate() {
     if (Platform.OS === 'web') {
-      const html = buildPrintableHtml(selectedBackground?.imageUrl || '');
-      openWebPrintableDocument(html);
+      try {
+        setWorking(true);
+        const html = await createPrintableHtml();
+        openWebPrintableDocument(html);
+      } catch (error) {
+        console.error('Print template error:', error);
+        window.alert(error.message || 'Could not prepare the printable background.');
+      } finally {
+        setWorking(false);
+      }
       return;
     }
 
@@ -884,14 +871,16 @@ export default function VisualTemplateBuilder() {
 
   async function shareTemplate() {
     if (Platform.OS === 'web') {
-      const html = buildPrintableHtml(selectedBackground?.imageUrl || '');
-      const opened = openWebPrintableDocument(html);
-
-      if (opened) {
-        Alert.alert(
-          'Save or share as PDF',
-          'In the browser print dialog, choose “Save as PDF.” You can then share the saved PDF.'
-        );
+      try {
+        setWorking(true);
+        const html = await createPrintableHtml();
+        const opened = openWebPrintableDocument(html);
+        if (opened) window.alert('In the print dialog, choose "Save as PDF" to save or share.');
+      } catch (error) {
+        console.error('PDF template error:', error);
+        window.alert(error.message || 'Could not prepare the PDF background.');
+      } finally {
+        setWorking(false);
       }
       return;
     }
