@@ -281,11 +281,6 @@ exports.parentAssistant = onCall(
         }
       }
 
-      const teachingKnowledge = await getRelevantTeachingKnowledge(
-      db,
-      [lastUserMessage.content, skillContext].filter(Boolean).join(" ")
-    );
-
     const instructions = [
       "You are the SEEDS Independent Steps caregiver assistant.",
       "Help parents and caregivers teach practical daily life skills.",
@@ -539,6 +534,11 @@ exports.chatAssistant = onCall(
           "The caregiver may be asking for help identifying a missing micro-step.";
       }
     }
+
+    const teachingKnowledge = await getRelevantTeachingKnowledge(
+      db,
+      [lastUserMessage.content, skillContext].filter(Boolean).join(" ")
+    );
 
     const instructions = [
       "You are the SEEDS Independent Steps caregiver assistant.",
