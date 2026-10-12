@@ -562,7 +562,35 @@ export default function VisualTemplateBuilder() {
           </section>
         `;
       })
-      .join('');
+      .join('<!--STEP_BREAK-->');
+
+    // Explicit page groups keep every step intact on iOS, Android and web.
+    // Photo-above cards are taller, so they use a smaller per-page capacity.
+    const firstPageCapacity = templateId === 'photo-top' ? 2 : 3;
+    const laterPageCapacity = templateId === 'photo-top' ? 2 : 4;
+    const stepMarkup = rows ? rows.split('<!--STEP_BREAK-->') : [];
+    const pageGroups = [];
+    let cursor = 0;
+    while (cursor < stepMarkup.length) {
+      const capacity = pageGroups.length === 0 ? firstPageCapacity : laterPageCapacity;
+      pageGroups.push(stepMarkup.slice(cursor, cursor + capacity));
+      cursor += capacity;
+    }
+    if (!pageGroups.length) pageGroups.push([]);
+    const pages = pageGroups.map((group, pageIndex) => `
+      <main class="page">
+        ${pageIndex === 0 ? `
+          <header class="headerCard">
+            <div class="eyebrow">Independent Steps</div>
+            <h1>${title}</h1>
+            <div class="headerSub">
+              Follow one step at a time. Keep the page nearby while practicing.
+            </div>
+          </header>` : ''}
+        <div class="steps">${group.join('')}</div>
+        <footer class="footer">For privacy considerations, photos are saved only on this device.</footer>
+      </main>
+    `).join('');
 
     return `
       <!doctype html>
@@ -591,10 +619,19 @@ export default function VisualTemplateBuilder() {
             }
 
             .page {
-              min-height: 11in;
-              width: 100%;
+              height: 11in;
+              width: 8.5in;
               padding: 0.38in;
+              position: relative;
+              overflow: hidden;
+              page-break-after: always;
+              break-after: page;
               ${backgroundCss}
+            }
+
+            .page:last-child {
+              page-break-after: auto;
+              break-after: auto;
             }
 
             .headerCard {
@@ -665,11 +702,6 @@ export default function VisualTemplateBuilder() {
               page-break-inside: avoid;
               break-inside: avoid;
               box-shadow: 0 5px 14px rgba(31,42,55,0.08);
-            }
-
-            .stepCard:nth-child(3n + 1):not(:first-child) {
-              page-break-before: always;
-              break-before: page;
             }
 
             .stepCard.row {
@@ -768,8 +800,11 @@ export default function VisualTemplateBuilder() {
             }
 
             .footer {
-              margin-top: 17px;
-              padding: 11px 14px;
+              position: absolute;
+              bottom: 0.20in;
+              left: 0.38in;
+              right: 0.38in;
+              padding: 8px 12px;
               border-radius: 15px;
               background: rgba(255,255,255,0.88);
               border: 1px solid ${theme.border};
@@ -782,23 +817,7 @@ export default function VisualTemplateBuilder() {
           </style>
         </head>
         <body>
-          <main class="page">
-            <header class="headerCard">
-              <div class="eyebrow">Independent Steps</div>
-              <h1>${title}</h1>
-              <div class="headerSub">
-                Follow one step at a time. Keep the page nearby while practicing.
-              </div>
-            </header>
-
-            <div class="steps">
-              ${rows}
-            </div>
-
-            <footer class="footer">
-              Caregiver-selected photos stay on the device and are not uploaded to Firebase.
-            </footer>
-          </main>
+          ${pages}
         </body>
       </html>
     `;
