@@ -15,7 +15,7 @@ import { doc, getDoc } from 'firebase/firestore';
 import { httpsCallable } from 'firebase/functions';
 
 import { auth, db, functions } from '../../../lib/firebase';
-import { findIndependentStepsSkill } from '../../../data/independentStepsSkills';
+
 
 const genericSteps = [
   'Get ready and gather what you need.',
@@ -40,17 +40,16 @@ export default function StepHelp() {
     const load = async () => {
       try {
         setLoading(true);
-        const fallbackSkill = findIndependentStepsSkill(resolvedSkillId);
-        const skillSnap = await getDoc(doc(db, 'skills', String(resolvedSkillId)));
+        const canonicalId = String(resolvedSkillId) === 'zip-winter-coat'
+          ? 'zip-up-a-winter-coat' : String(resolvedSkillId);
+        const skillSnap = await getDoc(doc(db, 'skills', canonicalId));
 
-        if (!skillSnap.exists() && !fallbackSkill) {
+        if (!skillSnap.exists() || skillSnap.data().active === false) {
           setSkill(null);
           return;
         }
 
-        const loadedSkill = skillSnap.exists()
-          ? { ...fallbackSkill, id: skillSnap.id, ...skillSnap.data() }
-          : fallbackSkill;
+        const loadedSkill = { id: skillSnap.id, ...skillSnap.data() };
 
         let nextSteps =
           Array.isArray(loadedSkill.steps) && loadedSkill.steps.length
@@ -59,16 +58,14 @@ export default function StepHelp() {
 
         const user = auth.currentUser;
         if (user) {
-          const customSnap = await getDoc(
-            doc(
-              db,
-              'users',
-              user.uid,
-              'skillCustomizations',
-              String(resolvedSkillId)
-            )
+          let customSnap = await getDoc(
+            doc(db, 'users', user.uid, 'skillCustomizations', canonicalId)
           );
-
+          if (!customSnap.exists() && canonicalId === 'zip-up-a-winter-coat') {
+            customSnap = await getDoc(
+              doc(db, 'users', user.uid, 'skillCustomizations', 'zip-winter-coat')
+            );
+          }
           if (
             customSnap.exists() &&
             Array.isArray(customSnap.data().steps) &&
