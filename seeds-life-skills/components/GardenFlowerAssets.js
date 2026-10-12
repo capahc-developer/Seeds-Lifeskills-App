@@ -1,5 +1,5 @@
 // Bundled artwork; future user-created flowers may instead use Firebase Storage URLs.
-export const FLOWER_TYPES = ["sunflower", "tulip", "daisy", "rose", "lavender", "hydrangea"];
+export const FLOWER_TYPES = ["sunflower", "tulip", "rose", "lavender", "hydrangea"];
 const FLOWER_ART = {
   sunflower: [
     require('../assets/garden/sunflower_seed.png'),
@@ -12,12 +12,6 @@ const FLOWER_ART = {
     require('../assets/garden/tulip_sprout.png'),
     require('../assets/garden/tulip_plant.png'),
     require('../assets/garden/tulip_flower.png'),
-  ],
-  daisy: [
-    require('../assets/garden/daisy_seed.png'),
-    require('../assets/garden/daisy_sprout.png'),
-    require('../assets/garden/daisy_plant.png'),
-    require('../assets/garden/daisy_flower.png'),
   ],
   rose: [
     require('../assets/garden/rose_seed.png'),
