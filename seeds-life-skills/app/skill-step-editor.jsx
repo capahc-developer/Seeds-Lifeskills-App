@@ -48,18 +48,26 @@ export default function SkillStepEditor() {
       }
 
       try {
-        const [skillSnapshot, customizationSnapshot] = await Promise.all([
-          getDoc(doc(db, 'skills', String(skillId))),
+        const canonicalId = String(skillId) === 'zip-winter-coat'
+          ? 'zip-up-a-winter-coat' : String(skillId);
+        const [skillSnapshot, initialCustomization] = await Promise.all([
+          getDoc(doc(db, 'skills', canonicalId)),
           getDoc(
             doc(
               db,
               'users',
               user.uid,
               'skillCustomizations',
-              String(skillId)
+              canonicalId
             )
           ),
         ]);
+        let customizationSnapshot = initialCustomization;
+        if (!customizationSnapshot.exists() && canonicalId === 'zip-up-a-winter-coat') {
+          customizationSnapshot = await getDoc(
+            doc(db, 'users', user.uid, 'skillCustomizations', 'zip-winter-coat')
+          );
+        }
 
         if (!skillSnapshot.exists()) {
           setError('This skill could not be found.');
@@ -146,7 +154,7 @@ export default function SkillStepEditor() {
           'users',
           user.uid,
           'skillCustomizations',
-          String(skillId)
+          String(skillId) === 'zip-winter-coat' ? 'zip-up-a-winter-coat' : String(skillId)
         ),
         {
           steps: cleanSteps,
@@ -155,7 +163,7 @@ export default function SkillStepEditor() {
         { merge: true }
       );
 
-      router.replace(`/skill/${String(skillId)}`);
+      router.replace(`/skill/${String(skillId) === 'zip-winter-coat' ? 'zip-up-a-winter-coat' : String(skillId)}`);
     } catch (cause) {
       console.error('Error saving step customization:', cause);
       setError('The steps could not be saved. Please try again.');
