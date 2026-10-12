@@ -130,11 +130,21 @@ export default function StepHelp() {
       if (!response) throw new Error('The assistant returned an empty response.');
       setAnswer(response);
     } catch (error) {
-      console.error('Step guidance error:', error);
-      Alert.alert(
-        'Could not get guidance',
-        error?.message || 'The assistant is unavailable right now. Please try again.'
-      );
+      console.warn('Step guidance request failed:', {
+        code: error?.code,
+        message: error?.message,
+        details: error?.details,
+      });
+
+      const readableMessage =
+        error?.code === 'functions/unauthenticated'
+          ? 'Please sign in again, then retry.'
+          : error?.code === 'functions/unavailable'
+            ? 'The AI service is unavailable right now. Please try again.'
+            : error?.message ||
+              'The assistant is unavailable right now. Please try again.';
+
+      Alert.alert('Could not get guidance', readableMessage);
     } finally {
       setAsking(false);
     }
