@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -19,6 +19,7 @@ import * as ImagePicker from 'expo-image-picker';
 import * as Print from 'expo-print';
 import * as Sharing from 'expo-sharing';
 import * as FileSystem from 'expo-file-system/legacy';
+import { captureRef } from 'react-native-view-shot';
 
 import { auth, db, storage } from '../../../lib/firebase';
 import { findIndependentStepsSkill } from '../../../data/independentStepsSkills';
@@ -344,6 +345,18 @@ export default function VisualTemplateBuilder() {
   );
 
   const [localPrintBackground, setLocalPrintBackground] = useState('');
+  const nativePageRefs = useRef([]);
+  const nativePages = useMemo(() => {
+    const groups = [];
+    let offset = 0;
+    while (offset < steps.length) {
+      const count = templateId === 'photo-top' ? 2 : groups.length === 0 ? 3 : 4;
+      groups.push(steps.slice(offset, offset + count).map((step, j) => ({ step, index: offset + j })));
+      offset += count;
+    }
+    return groups.length ? groups : [[]];
+  }, [steps, templateId]);
+
   const selectedBackground = useMemo(
     () =>
       backgroundOptions.find((item) => item.id === backgroundId) ||
@@ -1106,6 +1119,42 @@ export default function VisualTemplateBuilder() {
     }
   }
 
+  async function saveNativePageImages() {
+    const folder = FileSystem.documentDirectory + 'seeds-visual-pages/';
+    await FileSystem.makeDirectoryAsync(folder, { intermediates: true });
+    const safeSkill = String(skill?.id || 'skill').replace(/[^a-z0-9_-]/gi, '_');
+    const saved = [];
+    for (let i = 0; i < nativePages.length; i++) {
+      const pageRef = nativePageRefs.current[i];
+      if (!pageRef) throw new Error('Page ' + (i + 1) + ' is not ready. Please try again.');
+      const tempUri = await captureRef(pageRef, {
+        format: 'png',
+        quality: 1,
+        result: 'tmpfile',
+        width: 1275,
+        height: 1650,
+      });
+      const destination = folder + safeSkill + '_page_' + (i + 1) + '.png';
+      await FileSystem.copyAsync({ from: tempUri, to: destination });
+      saved.push(destination);
+    }
+    return saved;
+  }
+
+  async function printNativePageImages(uris) {
+    const images = await Promise.all(uris.map(async (uri) => {
+      const base64 = await FileSystem.readAsStringAsync(uri, { encoding: FileSystem.EncodingType.Base64 });
+      return '<section><img src="data:image/png;base64,' + base64 + '" /></section>';
+    }));
+    const html = '<!doctype html><html><head><meta name="viewport" content="width=device-width, initial-scale=1">' +
+      '<style>@page{size:letter;margin:0}html,body{margin:0;padding:0}' +
+      'section{width:8.5in;height:11in;page-break-after:always;break-after:page;overflow:hidden}' +
+      'section:last-child{page-break-after:auto;break-after:auto}' +
+      'img{display:block;width:8.5in;height:11in}</style></head><body>' +
+      images.join('') + '</body></html>';
+    await Print.printAsync({ html });
+  }
+
   async function printTemplate() {
     if (Platform.OS === 'web') {
       const tab = window.open('', '_blank');
@@ -1124,8 +1173,8 @@ export default function VisualTemplateBuilder() {
 
     try {
       setWorking(true);
-      const html = await createPrintableHtml();
-      await Print.printAsync({ html });
+      const images = await saveNativePageImages();
+      await printNativePageImages(images);
     } catch (error) {
       console.error('Print template error:', error);
       Alert.alert('Could not print', 'Please try again.');
@@ -1152,27 +1201,22 @@ export default function VisualTemplateBuilder() {
 
     try {
       setWorking(true);
-      const html = await createPrintableHtml();
-
-      const result = await Print.printToFileAsync({
-        html,
-        base64: false,
-      });
-
+      const images = await saveNativePageImages();
       const available = await Sharing.isAvailableAsync();
       if (!available) {
-        Alert.alert(
-          'Sharing unavailable',
-          'PDF sharing is not available on this device.'
-        );
+        Alert.alert('Saved on device', 'Printable images were saved locally in the app.');
         return;
       }
-
-      await Sharing.shareAsync(result.uri, {
-        mimeType: 'application/pdf',
-        dialogTitle: `${skill?.title || 'Skill'} visual template`,
-        UTI: 'com.adobe.pdf',
+      // Share one page at a time through the native share sheet.
+      // All pages remain saved in the app's private document directory.
+      await Sharing.shareAsync(images[0], {
+        mimeType: 'image/png',
+        dialogTitle: 'Share visual schedule page 1',
+        UTI: 'public.png',
       });
+      if (images.length > 1) {
+        Alert.alert('All pages saved', images.length + ' printable pages were saved on this device. Use Print Template to print all pages together.');
+      }
     } catch (error) {
       console.error('Share template error:', error);
       Alert.alert('Could not share', 'Please try again.');
@@ -1456,6 +1500,68 @@ export default function VisualTemplateBuilder() {
         );
       })}
 
+      {Platform.OS !== 'web' && (
+        <View pointerEvents="none" style={{ position: 'absolute', left: -5000, top: 0 }}>
+          {nativePages.map((group, pageIndex) => (
+            <View
+              key={'native-print-page-' + pageIndex}
+              ref={(node) => { nativePageRefs.current[pageIndex] = node; }}
+              collapsable={false}
+              style={{ width: 390, height: 505, overflow: 'hidden', backgroundColor: selectedBackground.pageBg }}
+            >
+              {selectedBackground.imageUrl && (
+                <Image
+                  source={{ uri: selectedBackground.imageUrl }}
+                  style={{ position: 'absolute', width: 390, height: 505 }}
+                  resizeMode="cover"
+                />
+              )}
+              {pageIndex === 0 && (
+                <View style={{ margin: 12, padding: 12, borderRadius: 10, backgroundColor: 'rgba(255,255,255,0.94)' }}>
+                  <Text style={{ color: selectedBackground.accent, fontSize: 8, fontWeight: '800' }}>INDEPENDENT STEPS</Text>
+                  <Text style={{ color: selectedBackground.text, fontSize: 19, fontWeight: '800' }} numberOfLines={2}>{skill?.title || 'Visual Schedule'}</Text>
+                  <Text style={{ color: selectedBackground.muted, fontSize: 9 }}>Follow one step at a time.</Text>
+                </View>
+              )}
+              <View style={{ paddingHorizontal: 12, paddingTop: pageIndex === 0 ? 0 : 12 }}>
+                {group.map(({ step, index }) => {
+                  const photoTop = templateId === 'photo-top';
+                  const hasPhoto = templateId !== 'text-only';
+                  return (
+                    <View key={index} style={{
+                      height: photoTop ? 185 : 91,
+                      marginBottom: 7, padding: 8, borderRadius: 10,
+                      backgroundColor: 'rgba(255,255,255,0.94)',
+                      flexDirection: photoTop ? 'column' : 'row',
+                      alignItems: photoTop ? 'stretch' : 'center',
+                    }}>
+                      <View style={{ width: 23, height: 23, borderRadius: 12, backgroundColor: selectedBackground.accent, justifyContent: 'center', alignItems: 'center', marginRight: 8 }}>
+                        <Text style={{ color: '#FFFFFF', fontSize: 11, fontWeight: '800' }}>{index + 1}</Text>
+                      </View>
+                      <View style={{ flex: 1, marginTop: photoTop ? -22 : 0, marginLeft: photoTop ? 32 : 0, justifyContent: 'center' }}>
+                        <Text style={{ fontSize: 8, color: selectedBackground.accent, fontWeight: '800' }}>STEP {index + 1}</Text>
+                        <Text style={{ fontSize: photoTop ? 11 : 10, color: selectedBackground.text, fontWeight: '700' }} numberOfLines={photoTop ? 2 : 5}>
+                          {personalizeStep(step, firstName)}
+                        </Text>
+                      </View>
+                      {hasPhoto && (
+                        photos[index]?.uri
+                          ? <Image source={{ uri: photos[index].uri }} resizeMode="contain" style={photoTop ? { width: '100%', height: 120, marginTop: 5 } : { width: 85, height: 74, marginLeft: 8 }} />
+                          : <View style={photoTop ? { width: '100%', height: 120, marginTop: 5, backgroundColor: selectedBackground.placeholderBg } : { width: 85, height: 74, marginLeft: 8, backgroundColor: selectedBackground.placeholderBg, justifyContent: 'center' }}>
+                              <Text style={{ fontSize: 8, color: selectedBackground.muted, textAlign: 'center' }}>Add a photo here</Text>
+                            </View>
+                      )}
+                    </View>
+                  );
+                })}
+              </View>
+              <Text style={{ position: 'absolute', bottom: 7, alignSelf: 'center', color: selectedBackground.muted, fontSize: 7 }}>
+                For privacy considerations, photos are saved only on this device.
+              </Text>
+            </View>
+          ))}
+        </View>
+      )}
       <View style={s.actions}>
         <Pressable
           style={[s.primaryButton, { backgroundColor: '#7559E8' }, (!photosRestored || savingPhotos) && s.disabled]}
@@ -1502,7 +1608,7 @@ export default function VisualTemplateBuilder() {
             color={selectedBackground.accent}
           />
           <Text style={[s.secondaryText, { color: selectedBackground.accent }]}>
-            {Platform.OS === 'web' ? 'Download Images' : 'Share PDF'}
+            {Platform.OS === 'web' ? 'Download Images' : 'Save Images & Share'}
           </Text>
         </Pressable>
       </View>
