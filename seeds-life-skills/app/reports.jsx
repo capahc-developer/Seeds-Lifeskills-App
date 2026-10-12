@@ -1,1374 +1,227 @@
-import React, { useEffect, useMemo, useState } from 'react';
-
-import {
-  ScrollView,
-  StyleSheet,
-  Text,
-  View,
-  Pressable,
-  ActivityIndicator,
-} from 'react-native';
-
+import React, { useCallback, useMemo, useState } from 'react';
+import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { router } from 'expo-router';
-
-import {
-  getDocs,
-  query,
-  orderBy,
-} from 'firebase/firestore';
-
+import { router, useFocusEffect } from 'expo-router';
+import { doc, getDoc, getDocs, orderBy, query } from 'firebase/firestore';
+import { auth, db } from '../lib/firebase';
 import { practiceLogsForCurrentUser } from '../lib/userData';
 
-
-
-const ratingInfo = [
-  { label: 'Great', emoji: '😄' },
-  { label: 'Good', emoji: '🙂' },
-  { label: 'Okay', emoji: '😐' },
-  { label: 'Hard', emoji: '☹️' },
-  { label: 'Very hard', emoji: '😣' },
-];
-
-
-export default function Reports() {
-
-  const [logs, setLogs] = useState([]);
-  const [loading, setLoading] = useState(true);
-
-
-  // -----------------------------------
-  // LOAD PRACTICE LOGS
-  // -----------------------------------
-
-  useEffect(() => {
-
-    const loadReports = async () => {
-
-      try {
-
-        const logsQuery = query(
-          practiceLogsForCurrentUser(),
-          orderBy('createdAt', 'desc')
-        );
-
-        const snapshot =
-          await getDocs(logsQuery);
-
-        const loadedLogs =
-          snapshot.docs.map((logDoc) => ({
-            id: logDoc.id,
-            ...logDoc.data(),
-          }));
-
-        setLogs(loadedLogs);
-
-      } catch (error) {
-
-        console.error(
-          'Error loading reports:',
-          error
-        );
-
-      } finally {
-
-        setLoading(false);
-
-      }
-
-    };
-
-    loadReports();
-
-  }, []);
-
-
-  // -----------------------------------
-  // LAST 4 WEEKS
-  // -----------------------------------
-
-  const recentLogs = useMemo(() => {
-
-    const cutoff = new Date();
-
-    cutoff.setDate(
-      cutoff.getDate() - 28
-    );
-
-    return logs.filter((log) => {
-
-      if (!log.createdAt?.toDate) {
-        return true;
-      }
-
-      return (
-        log.createdAt.toDate() >= cutoff
-      );
-
-    });
-
-  }, [logs]);
-
-
-  // -----------------------------------
-  // TOTAL SESSIONS
-  // -----------------------------------
-
-  const totalSessions =
-    recentLogs.length;
-
-
-  // -----------------------------------
-  // SUCCESS RATE
-  // Good + Great = success
-  // -----------------------------------
-
-  const successfulSessions =
-    recentLogs.filter(
-      (log) =>
-        log.rating === 'Good' ||
-        log.rating === 'Great'
-    ).length;
-
-
-  const successRate =
-    totalSessions > 0
-      ? Math.round(
-          (
-            successfulSessions /
-            totalSessions
-          ) * 100
-        )
-      : 0;
-
-
-  // -----------------------------------
-  // UNIQUE SKILLS
-  // -----------------------------------
-
-  const skillsPracticed =
-    new Set(
-      recentLogs
-        .map(
-          (log) =>
-            log.skillId ||
-            log.skill
-        )
-        .filter(Boolean)
-    ).size;
-
-
-  // -----------------------------------
-  // RATING COUNTS
-  // -----------------------------------
-
-  const ratingCounts =
-    ratingInfo.map((rating) => {
-
-      const count =
-        recentLogs.filter(
-          (log) =>
-            log.rating === rating.label
-        ).length;
-
-      const percent =
-        totalSessions > 0
-          ? Math.round(
-              (
-                count /
-                totalSessions
-              ) * 100
-            )
-          : 0;
-
-      return {
-        ...rating,
-        count,
-        percent,
-      };
-
-    });
-
-
-  // -----------------------------------
-  // SKILL PROGRESS
-  // -----------------------------------
-
-  const skillProgress =
-    useMemo(() => {
-
-      const groups = {};
-
-      recentLogs.forEach((log) => {
-
-        const id =
-          log.skillId ||
-          log.skill;
-
-        if (!id) {
-          return;
-        }
-
-        if (!groups[id]) {
-
-          groups[id] = {
-            id,
-            title:
-              log.skill ||
-              'Unnamed Skill',
-            total: 0,
-            successful: 0,
-          };
-
-        }
-
-        groups[id].total += 1;
-
-        if (
-          log.rating === 'Good' ||
-          log.rating === 'Great'
-        ) {
-
-          groups[id].successful += 1;
-
-        }
-
-      });
-
-
-      return Object.values(groups)
-        .map((skill) => ({
-
-          ...skill,
-
-          percent:
-            skill.total > 0
-              ? Math.round(
-                  (
-                    skill.successful /
-                    skill.total
-                  ) * 100
-                )
-              : 0,
-
-        }))
-        .sort(
-          (a, b) =>
-            b.total - a.total
-        );
-
-    }, [recentLogs]);
-
-
-  // -----------------------------------
-  // PRACTICE ACTIVITY
-  // 4 rolling 7-day periods
-  // Week 4 = most recent
-  // -----------------------------------
-
-  const weeklyActivity =
-    useMemo(() => {
-
-      const now = new Date();
-
-      const weeks = [
-        { label: 'Week 1', count: 0 },
-        { label: 'Week 2', count: 0 },
-        { label: 'Week 3', count: 0 },
-        { label: 'Week 4', count: 0 },
-      ];
-
-
-      recentLogs.forEach((log) => {
-
-        if (!log.createdAt?.toDate) {
-          return;
-        }
-
-        const logDate =
-          log.createdAt.toDate();
-
-        const millisecondsAgo =
-          now.getTime() -
-          logDate.getTime();
-
-        const daysAgo =
-          Math.floor(
-            millisecondsAgo /
-            (
-              1000 *
-              60 *
-              60 *
-              24
-            )
-          );
-
-
-        if (
-          daysAgo >= 0 &&
-          daysAgo < 28
-        ) {
-
-          const weekIndex =
-            3 -
-            Math.floor(
-              daysAgo / 7
-            );
-
-          if (
-            weekIndex >= 0 &&
-            weekIndex <= 3
-          ) {
-
-            weeks[weekIndex].count += 1;
-
-          }
-
-        }
-
-      });
-
-      return weeks;
-
-    }, [recentLogs]);
-
-
-  const maxWeeklyActivity =
-    Math.max(
-      ...weeklyActivity.map(
-        (week) => week.count
-      ),
-      1
-    );
-
-
-  // -----------------------------------
-  // PRACTICE STREAK
-  //
-  // One or more logs on the same day
-  // counts as one practice day.
-  //
-  // A current streak can have its most
-  // recent practice today or yesterday.
-  // -----------------------------------
-
-  const practiceStreak =
-    useMemo(() => {
-
-      const practiceDays = [
-        ...new Set(
-          logs
-            .filter(
-              (log) =>
-                log.createdAt?.toDate
-            )
-            .map((log) => {
-
-              const date =
-                log.createdAt.toDate();
-
-              return new Date(
-                date.getFullYear(),
-                date.getMonth(),
-                date.getDate()
-              ).getTime();
-
-            })
-        ),
-      ].sort(
-        (a, b) => b - a
-      );
-
-
-      if (
-        practiceDays.length === 0
-      ) {
-
-        return 0;
-
-      }
-
-
-      const today = new Date();
-
-      const todayStart =
-        new Date(
-          today.getFullYear(),
-          today.getMonth(),
-          today.getDate()
-        ).getTime();
-
-
-      const oneDay =
-        24 * 60 * 60 * 1000;
-
-
-      const mostRecentDay =
-        practiceDays[0];
-
-
-      // No practice today or yesterday:
-      // current streak has ended.
-
-      if (
-        mostRecentDay !==
-          todayStart &&
-        mostRecentDay !==
-          todayStart - oneDay
-      ) {
-
-        return 0;
-
-      }
-
-
-      let streak = 1;
-
-
-      for (
-        let i = 1;
-        i < practiceDays.length;
-        i++
-      ) {
-
-        const difference =
-          practiceDays[i - 1] -
-          practiceDays[i];
-
-
-        if (
-          difference === oneDay
-        ) {
-
-          streak += 1;
-
-        } else {
-
-          break;
-
-        }
-
-      }
-
-
-      return streak;
-
-    }, [logs]);
-
-
-  // -----------------------------------
-  // LOADING
-  // -----------------------------------
-
-  if (loading) {
-
-    return (
-
-      <View style={s.loading}>
-
-        <ActivityIndicator
-          size="large"
-        />
-
-        <Text style={s.loadingText}>
-          Building report...
-        </Text>
-
-      </View>
-
-    );
-
-  }
-
-
-  // -----------------------------------
-  // SCREEN
-  // -----------------------------------
-
-  return (
-
-    <ScrollView
-      style={s.page}
-      contentContainerStyle={s.content}
-    >
-
-      {/* HEADER */}
-
-      <View style={s.header}>
-
-        <Pressable
-          onPress={() =>
-            router.back()
-          }
-        >
-
-          <Ionicons
-            name="chevron-back"
-            size={28}
-          />
-
-        </Pressable>
-
-
-        <Text style={s.headerTitle}>
-          Reports
-        </Text>
-
-
-        <View style={{ width: 28 }} />
-
-      </View>
-
-
-      <Text style={s.intro}>
-        Every practice helps your garden grow. 🌱
-        Explore your activity and progress below.
-      </Text>
-
-
-      <View style={s.period}>
-
-        <Text style={s.periodText}>
-          Last 4 Weeks
-        </Text>
-
-        <Ionicons
-          name="calendar-outline"
-          size={16}
-          color="#45556B"
-        />
-
-      </View>
-
-
-      {/* SUMMARY */}
-
-      <View style={s.summaryRow}>
-
-        <View style={s.summaryCard}>
-
-          <Ionicons
-            name="clipboard-outline"
-            size={26}
-            color="#258DEB"
-          />
-
-          <Text style={s.metric}>
-            {totalSessions}
-          </Text>
-
-          <Text style={s.metricLabel}>
-            Practice
-            {'\n'}
-            Sessions
-          </Text>
-
-        </View>
-
-
-        <View style={s.summaryCard}>
-
-          <Ionicons
-            name="stats-chart"
-            size={26}
-            color="#45A66B"
-          />
-
-          <Text style={s.metric}>
-            {successRate}%
-          </Text>
-
-          <Text style={s.metricLabel}>
-            Success
-            {'\n'}
-            Rate
-          </Text>
-
-        </View>
-
-
-        <View style={s.summaryCard}>
-
-          <Ionicons
-            name="star"
-            size={26}
-            color="#F6B72B"
-          />
-
-          <Text style={s.metric}>
-            {skillsPracticed}
-          </Text>
-
-          <Text style={s.metricLabel}>
-            Skills
-            {'\n'}
-            Practiced
-          </Text>
-
-        </View>
-
-      </View>
-
-
-      {/* PRACTICE STREAK */}
-
-      <View style={s.streakCard}>
-
-        <View style={s.streakIcon}>
-
-          <Ionicons
-            name="flame"
-            size={30}
-            color="#45A66B"
-          />
-
-        </View>
-
-
-        <View style={{ flex: 1 }}>
-
-          <Text style={s.streakTitle}>
-
-            {practiceStreak > 0
-              ? `${practiceStreak}-Day Practice Streak`
-              : 'Start a Practice Streak'}
-
-          </Text>
-
-
-          <Text style={s.streakSubtitle}>
-
-            {practiceStreak > 0
-              ? 'Keep practicing to continue the streak!'
-              : 'Log practice today to begin a new streak.'}
-
-          </Text>
-
-        </View>
-
-      </View>
-
-
-      {/* PRACTICE ACTIVITY */}
-
-      <View style={s.card}>
-
-        <View style={s.chartHeader}>
-
-          <View>
-
-            <Text style={s.cardTitle}>
-              🌿 Practice Activity
-            </Text>
-
-            <Text style={s.chartSubtitle}>
-              Sessions per week
-            </Text>
-
-          </View>
-
-
-          <View style={s.activityBadge}>
-
-            <Ionicons
-              name="calendar-outline"
-              size={15}
-              color="#258DEB"
-            />
-
-            <Text
-              style={
-                s.activityBadgeText
-              }
-            >
-              {totalSessions} total
-            </Text>
-
-          </View>
-
-        </View>
-
-
-        <View style={s.chart}>
-
-          {weeklyActivity.map(
-            (week, index) => {
-
-              const barHeight =
-                week.count === 0
-                  ? 4
-                  : Math.max(
-                      20,
-                      (
-                        week.count /
-                        maxWeeklyActivity
-                      ) * 120
-                    );
-
-
-              return (
-
-                <View
-                  key={week.label}
-                  style={s.barColumn}
-                >
-
-                  <Text
-                    style={s.barValue}
-                  >
-                    {week.count}
-                  </Text>
-
-
-                  <View
-                    style={s.barArea}
-                  >
-
-                    <View
-                      style={[
-                        s.bar,
-                        {
-                          height:
-                            barHeight,
-                        },
-                      ]}
-                    />
-
-                  </View>
-
-
-                  <Text
-                    style={s.barLabel}
-                  >
-                    Wk {index + 1}
-                  </Text>
-
-                </View>
-
-              );
-
-            }
-          )}
-
-        </View>
-
-
-        <View
-          style={s.chartDivider}
-        />
-
-
-        <View style={s.chartFooter}>
-
-          <Ionicons
-            name="information-circle-outline"
-            size={17}
-            color="#8290A2"
-          />
-
-          <Text
-            style={s.chartFooterText}
-          >
-            Each bar shows the number of
-            practice sessions logged during
-            that week. Week 4 is the most
-            recent week.
-          </Text>
-
-        </View>
-
-      </View>
-
-
-      {/* HOW DID IT GO */}
-
-      <View style={s.card}>
-
-        <Text style={s.cardTitle}>
-          🌼 How Did It Go?
-        </Text>
-
-
-        {ratingCounts.map(
-          (rating) => (
-
-            <View
-              key={rating.label}
-              style={s.ratingRow}
-            >
-
-              <Text style={s.emoji}>
-                {rating.emoji}
-              </Text>
-
-
-              <Text
-                style={s.ratingLabel}
-              >
-                {rating.label}
-              </Text>
-
-
-              <View
-                style={
-                  s.progressBackground
-                }
-              >
-
-                <View
-                  style={[
-                    s.progressFill,
-                    {
-                      width:
-                        `${rating.percent}%`,
-                    },
-                  ]}
-                />
-
-              </View>
-
-
-              <Text style={s.percent}>
-                {rating.percent}%
-              </Text>
-
-            </View>
-
-          )
-        )}
-
-      </View>
-
-
-      {/* SKILLS PROGRESS */}
-
-      <View style={s.card}>
-
-        <Text style={s.cardTitle}>
-          🌱 Skills Progress
-        </Text>
-
-
-        {skillProgress.length === 0 ? (
-
-          <Text style={s.empty}>
-            No practice data yet.
-          </Text>
-
-        ) : (
-
-          skillProgress.map(
-            (skill) => (
-
-              <Pressable
-                key={skill.id}
-                style={s.skillRow}
-                onPress={() =>
-                  router.push(
-                    `/reports/${skill.id}`
-                  )
-                }
-              >
-
-                <View
-                  style={{ flex: 1 }}
-                >
-
-                  <Text
-                    style={s.skillTitle}
-                  >
-                    {skill.title}
-                  </Text>
-
-
-                  <View
-                    style={
-                      s.skillProgressBackground
-                    }
-                  >
-
-                    <View
-                      style={[
-                        s.skillProgressFill,
-                        {
-                          width:
-                            `${skill.percent}%`,
-                        },
-                      ]}
-                    />
-
-                  </View>
-
-                </View>
-
-
-                <Text
-                  style={s.skillPercent}
-                >
-                  {skill.percent}%
-                </Text>
-
-
-                <Ionicons
-                  name="chevron-forward"
-                  size={19}
-                  color="#8290A2"
-                />
-
-              </Pressable>
-
-            )
-          )
-
-        )}
-
-      </View>
-
-
-      {/* RECENT PRACTICE */}
-
-      <View style={s.card}>
-
-        <Text style={s.cardTitle}>
-          🌷 Recent Practice
-        </Text>
-
-
-        {recentLogs.length === 0 ? (
-
-          <Text style={s.empty}>
-            No recent practice logs.
-          </Text>
-
-        ) : (
-
-          recentLogs
-            .slice(0, 5)
-            .map((log) => {
-
-              const rating =
-                ratingInfo.find(
-                  (r) =>
-                    r.label ===
-                    log.rating
-                );
-
-
-              return (
-
-                <View
-                  key={log.id}
-                  style={s.recentRow}
-                >
-
-                  <View
-                    style={{ flex: 1 }}
-                  >
-
-                    <Text
-                      style={s.recentSkill}
-                    >
-                      {log.skill}
-                    </Text>
-
-                    <Text
-                      style={s.recentDate}
-                    >
-                      {log.date}
-                    </Text>
-
-                  </View>
-
-
-                  <Text
-                    style={s.recentRating}
-                  >
-                    {rating?.emoji}{' '}
-                    {log.rating}
-                  </Text>
-
-                </View>
-
-              );
-
-            })
-
-        )}
-
-      </View>
-
-    </ScrollView>
-
-  );
-
+const NAVY = '#14245B';
+const PURPLE = '#605BFA';
+
+const outcomeInfo = {
+  'Did it independently': { emoji: '😊', label: 'Did it independently', color: '#E5F8E8' },
+  'Some help needed': { emoji: '😐', label: 'Some help needed', color: '#FFF3D9' },
+  'Hard today': { emoji: '😟', label: 'Hard today', color: '#FFE8E8' },
+  // Old entries are kept readable; these are not new rating choices.
+  Great: { emoji: '😄', label: 'Great', color: '#E5F8E8' },
+  Good: { emoji: '🙂', label: 'Good', color: '#E5F8E8' },
+  Okay: { emoji: '😐', label: 'Okay', color: '#FFF3D9' },
+  Hard: { emoji: '☹️', label: 'Hard', color: '#FFE8E8' },
+  'Very hard': { emoji: '😣', label: 'Very hard', color: '#FFE8E8' },
+};
+
+function formatDate(log) {
+  if (typeof log.date === 'string' && log.date.trim()) return log.date;
+  const date = log.createdAt?.toDate?.();
+  return date ? date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : 'Date not available';
 }
 
-
-const s = StyleSheet.create({
-
-  page: {
-    flex: 1,
-    backgroundColor: '#F0F8EE',
-  },
-
-  content: {
-    paddingBottom: 50,
-  },
-
-  header: {
-    paddingTop: 56,
-    paddingHorizontal: 20,
-    paddingBottom: 16,
-    backgroundColor: '#FFFFFF',
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-
-  headerTitle: {
-    fontSize: 23,
-    fontWeight: '800',
-    color: '#315C42',
-  },
-
-  intro: {
-    marginHorizontal: 20,
-    marginTop: 22,
-    fontSize: 16,
-    lineHeight: 23,
-    color: '#718096',
-  },
-
-  period: {
-    alignSelf: 'flex-start',
-    marginLeft: 20,
-    marginTop: 16,
-    paddingHorizontal: 15,
-    paddingVertical: 9,
-    backgroundColor: '#FFFFFF',
-    borderRadius: 18,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 7,
-  },
-
-  periodText: {
-    fontSize: 14,
-    fontWeight: '700',
-    color: '#315C42',
-  },
-
-
-  // SUMMARY
-
-  summaryRow: {
-    flexDirection: 'row',
-    marginHorizontal: 14,
-    marginTop: 18,
-    gap: 8,
-  },
-
-  summaryCard: {
-    flex: 1,
-    backgroundColor: '#FFFFFF',
-    borderRadius: 18,
-    paddingVertical: 17,
-    borderWidth: 1,
-    borderColor: '#D9EBD7',
-    alignItems: 'center',
-  },
-
-  metric: {
-    fontSize: 24,
-    fontWeight: '800',
-    color: '#315C42',
-    marginTop: 7,
-  },
-
-  metricLabel: {
-    fontSize: 12,
-    color: '#718096',
-    textAlign: 'center',
-    marginTop: 4,
-    lineHeight: 16,
-  },
-
-
-  // STREAK
-
-  streakCard: {
-    marginHorizontal: 16,
-    marginTop: 18,
-    backgroundColor: '#EFF8F1',
-    borderRadius: 20,
-    padding: 17,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 13,
-  },
-
-  streakIcon: {
-    width: 54,
-    height: 54,
-    borderRadius: 27,
-    backgroundColor: '#DDF1E3',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-
-  streakTitle: {
-    fontSize: 17,
-    fontWeight: '800',
-    color: '#315C42',
-  },
-
-  streakSubtitle: {
-    fontSize: 13,
-    color: '#718096',
-    marginTop: 4,
-    lineHeight: 18,
-  },
-
-
-  // GENERAL CARD
-
-  card: {
-    marginHorizontal: 16,
-    marginTop: 18,
-    backgroundColor: '#FFFFFF',
-    borderRadius: 20,
-    padding: 18,
-    borderWidth: 1,
-    borderColor: '#D9EBD7',
-  },
-
-  cardTitle: {
-    fontSize: 19,
-    fontWeight: '800',
-    color: '#315C42',
-    marginBottom: 15,
-  },
-
-
-  // ACTIVITY CHART
-
-  chartHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-start',
-  },
-
-  chartSubtitle: {
-    fontSize: 13,
-    color: '#8290A2',
-    marginTop: -8,
-  },
-
-  activityBadge: {
-    backgroundColor: '#E4F3DF',
-    borderRadius: 14,
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 5,
-  },
-
-  activityBadgeText: {
-    color: '#438D61',
-    fontSize: 12,
-    fontWeight: '700',
-  },
-
-  chart: {
-    height: 175,
-    flexDirection: 'row',
-    alignItems: 'flex-end',
-    justifyContent: 'space-around',
-    marginTop: 18,
-  },
-
-  barColumn: {
-    flex: 1,
-    height: 170,
-    alignItems: 'center',
-    justifyContent: 'flex-end',
-  },
-
-  barArea: {
-    height: 125,
-    justifyContent: 'flex-end',
-    alignItems: 'center',
-  },
-
-  bar: {
-    width: 36,
-    backgroundColor: '#73B87D',
-    borderRadius: 9,
-  },
-
-  barValue: {
-    fontSize: 13,
-    fontWeight: '800',
-    color: '#45556B',
-    marginBottom: 5,
-  },
-
-  barLabel: {
-    fontSize: 12,
-    color: '#8290A2',
-    marginTop: 7,
-  },
-
-  chartDivider: {
-    height: 1,
-    backgroundColor: '#EEF1F5',
-    marginTop: 7,
-  },
-
-  chartFooter: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    gap: 7,
-    marginTop: 11,
-  },
-
-  chartFooterText: {
-    flex: 1,
-    fontSize: 12,
-    lineHeight: 17,
-    color: '#8290A2',
-  },
-
-
-  // RATINGS
-
-  ratingRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 13,
-  },
-
-  emoji: {
-    width: 30,
-    fontSize: 20,
-  },
-
-  ratingLabel: {
-    width: 75,
-    fontSize: 14,
-    color: '#45556B',
-  },
-
-  progressBackground: {
-    flex: 1,
-    height: 10,
-    backgroundColor: '#EDF1F5',
-    borderRadius: 5,
-    overflow: 'hidden',
-  },
-
-  progressFill: {
-    height: 10,
-    backgroundColor: '#8CCB88',
-    borderRadius: 5,
-  },
-
-  percent: {
-    width: 45,
-    textAlign: 'right',
-    fontSize: 13,
-    fontWeight: '700',
-    color: '#45556B',
-  },
-
-
-  // SKILLS
-
-  skillRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: 13,
-    borderBottomWidth: 1,
-    borderBottomColor: '#EEF1F5',
-    gap: 10,
-  },
-
-  skillTitle: {
-    fontSize: 15,
-    fontWeight: '700',
-    color: '#315C42',
-    marginBottom: 8,
-  },
-
-  skillProgressBackground: {
-    height: 9,
-    backgroundColor: '#EDF1F5',
-    borderRadius: 5,
-    overflow: 'hidden',
-  },
-
-  skillProgressFill: {
-    height: 9,
-    backgroundColor: '#45A66B',
-    borderRadius: 5,
-  },
-
-  skillPercent: {
-    width: 42,
-    textAlign: 'right',
-    fontSize: 14,
-    fontWeight: '700',
-    color: '#45556B',
-  },
-
-
-  // RECENT PRACTICE
-
-  recentRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: '#EEF1F5',
-  },
-
-  recentSkill: {
-    fontSize: 15,
-    fontWeight: '700',
-    color: '#315C42',
-  },
-
-  recentDate: {
-    marginTop: 3,
-    fontSize: 12,
-    color: '#8290A2',
-  },
-
-  recentRating: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#45556B',
-  },
-
-  empty: {
-    color: '#8290A2',
-    fontSize: 14,
-  },
-
-
-  // LOADING
-
-  loading: {
-    flex: 1,
-    backgroundColor: '#F0F8EE',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-
-  loadingText: {
-    marginTop: 12,
-    color: '#718096',
-  },
-
+function LogNote({ label, value }) {
+  if (!value || !String(value).trim()) return null;
+  return (
+    <View style={styles.note}>
+      <Text style={styles.noteLabel}>{label}</Text>
+      <Text style={styles.noteValue}>{String(value)}</Text>
+    </View>
+  );
+}
+
+export default function Reports() {
+  const [logs, setLogs] = useState([]);
+  const [plants, setPlants] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+  const [showAllHistory, setShowAllHistory] = useState(false);
+  const [expandedLog, setExpandedLog] = useState(null);
+
+  useFocusEffect(useCallback(() => {
+    let active = true;
+    const load = async () => {
+      setLoading(true);
+      setError('');
+      try {
+        const uid = auth.currentUser?.uid;
+        if (!uid) throw new Error('Please sign in to view reports.');
+        const [logsSnapshot, gardenSnapshot] = await Promise.all([
+          getDocs(query(practiceLogsForCurrentUser(), orderBy('createdAt', 'desc'))),
+          getDoc(doc(db, 'users', uid, 'garden', 'state')),
+        ]);
+        if (!active) return;
+        setLogs(logsSnapshot.docs.map(item => ({ id: item.id, ...item.data() })));
+        const garden = gardenSnapshot.exists() ? gardenSnapshot.data() : {};
+        setPlants(Array.isArray(garden.plants) ? garden.plants : []);
+      } catch (e) {
+        console.error('Error loading reports:', e);
+        if (active) setError('Unable to load your practice history. Please try again.');
+      } finally {
+        if (active) setLoading(false);
+      }
+    };
+    load();
+    return () => { active = false; };
+  }, []));
+
+  const skills = useMemo(() => {
+    const bySkill = new Map();
+    logs.forEach(log => {
+      const key = log.skillId || log.skill || log.practiceItemTitle || 'Other practice';
+      const item = bySkill.get(key) || {
+        id: log.skillId || null,
+        name: log.skill || log.practiceItemTitle || 'Other practice',
+        count: 0,
+      };
+      item.count += 1;
+      bySkill.set(key, item);
+    });
+    return Array.from(bySkill.values()).sort((a, b) => b.count - a.count || a.name.localeCompare(b.name));
+  }, [logs]);
+
+  const visibleLogs = showAllHistory ? logs : logs.slice(0, 6);
+  const availableSeeds = Math.max(0, logs.length - plants.length);
+  const waterUsed = plants.reduce((sum, plant) => sum + Math.min(3, Math.max(0, Number(plant.stage) || 0)), 0);
+  const availableWater = Math.max(0, logs.length - waterUsed);
+
+  return (
+    <ScrollView style={styles.page} contentContainerStyle={styles.content}>
+      <View style={styles.header}>
+        <Pressable onPress={() => router.back()} accessibilityLabel="Back" style={styles.back}>
+          <Ionicons name="chevron-back" size={23} color={PURPLE} />
+          <Text style={styles.backText}>Back</Text>
+        </Pressable>
+        <Text style={styles.title}>Reports</Text>
+        <View style={styles.back} />
+      </View>
+      <Text style={styles.subtitle}>A record of the time and care you've put into practicing together. 💛</Text>
+
+      {loading ? (
+        <View style={styles.loading}><ActivityIndicator size="large" color={PURPLE} /><Text style={styles.muted}>Loading your practice history...</Text></View>
+      ) : error ? (
+        <View style={styles.card}><Text style={styles.error}>{error}</Text></View>
+      ) : (
+        <View style={styles.column}>
+          <View style={styles.gardenCard}>
+            <Text style={styles.gardenArt}>🌻  🌱  🌷  🌿</Text>
+            <Text style={styles.gardenTitle}>Your Garden</Text>
+            <Text style={styles.gardenMessage}>Every practice adds something to your garden.</Text>
+            <View style={styles.gardenStats}>
+              <View style={styles.gardenStat}><Text style={styles.statNumber}>{logs.length}</Text><Text style={styles.statLabel}>Seeds earned</Text></View>
+              <View style={styles.statDivider} />
+              <View style={styles.gardenStat}><Text style={styles.statNumber}>{plants.length}</Text><Text style={styles.statLabel}>Plants growing</Text></View>
+            </View>
+            <Text style={styles.gardenBalance}>{availableSeeds} seeds ready to plant  ·  {availableWater} watering credits</Text>
+            <Pressable style={styles.primaryButton} onPress={() => router.push('/garden')}>
+              <Text style={styles.primaryButtonText}>Visit Your Garden</Text>
+              <Ionicons name="arrow-forward" size={18} color="white" />
+            </Pressable>
+          </View>
+
+          <View style={styles.card}>
+            <View style={styles.sectionHeader}><Text style={styles.sectionTitle}>🌱 Skills You've Practiced</Text><Text style={styles.count}>{skills.length} skills</Text></View>
+            {skills.length === 0 ? <Text style={styles.muted}>Your practiced skills will appear here after your first log.</Text> : skills.map(skill => (
+              <Pressable key={skill.id || skill.name} style={styles.skillRow} onPress={() => skill.id && router.push(`/reports/${encodeURIComponent(skill.id)}`)} disabled={!skill.id}>
+                <View style={styles.skillIcon}><Text style={styles.skillEmoji}>🌼</Text></View>
+                <View style={styles.flex}><Text style={styles.skillName}>{skill.name}</Text><Text style={styles.muted}>{skill.count} practice {skill.count === 1 ? 'log' : 'logs'}</Text></View>
+                {skill.id ? <Ionicons name="chevron-forward" size={19} color="#8390A7" /> : null}
+              </Pressable>
+            ))}
+          </View>
+
+          <View style={styles.card}>
+            <View style={styles.sectionHeader}><Text style={styles.sectionTitle}>📖 Practice History</Text><Text style={styles.count}>{logs.length} total</Text></View>
+            <Text style={styles.sectionSubtitle}>Every entry counts, whether the day was easy or difficult.</Text>
+            {logs.length === 0 ? (
+              <View style={styles.empty}><Text style={styles.emptyEmoji}>📝</Text><Text style={styles.muted}>No practice logs yet.</Text><Pressable onPress={() => router.push('/assignments')}><Text style={styles.link}>Log your first practice</Text></Pressable></View>
+            ) : visibleLogs.map(log => {
+              const outcome = outcomeInfo[log.rating] || outcomeInfo[log.outcome] || null;
+              const isExpanded = expandedLog === log.id;
+              return (
+                <View key={log.id} style={styles.historyItem}>
+                  <Pressable style={styles.historyTop} onPress={() => setExpandedLog(isExpanded ? null : log.id)}>
+                    <View style={styles.historyIcon}><Text style={styles.skillEmoji}>📝</Text></View>
+                    <View style={styles.flex}><Text style={styles.skillName}>{log.skill || log.practiceItemTitle || 'Practice'}</Text><Text style={styles.muted}>{formatDate(log)}</Text></View>
+                    {outcome ? <View style={[styles.outcomeChip, { backgroundColor: outcome.color }]}><Text style={styles.outcomeEmoji}>{outcome.emoji}</Text></View> : null}
+                    <Ionicons name={isExpanded ? 'chevron-up' : 'chevron-down'} size={18} color="#8290A7" />
+                  </Pressable>
+                  {isExpanded ? (
+                    <View style={styles.historyDetails}>
+                      {outcome ? <Text style={styles.outcomeText}>How it went: {outcome.emoji} {outcome.label}</Text> : null}
+                      <LogNote label="What went well" value={log.whatWentWell} />
+                      <LogNote label="What was difficult" value={log.whatWasDifficult} />
+                      <LogNote label="Additional notes or questions" value={log.additionalNotes || log.additionalNotesOrQuestions || log.adjustment} />
+                      <LogNote label="Practice activity" value={log.practiceActivity} />
+                      <LogNote label="Comments" value={log.comments} />
+                    </View>
+                  ) : null}
+                </View>
+              );
+            })}
+            {logs.length > 6 ? <Pressable style={styles.showMore} onPress={() => setShowAllHistory(!showAllHistory)}><Text style={styles.link}>{showAllHistory ? 'Show less' : `View all ${logs.length} logs`}</Text><Ionicons name={showAllHistory ? 'chevron-up' : 'chevron-down'} size={16} color={PURPLE} /></Pressable> : null}
+          </View>
+          <Text style={styles.footer}>Your garden never resets when you take a break. 💚</Text>
+        </View>
+      )}
+    </ScrollView>
+  );
+}
+
+const styles = StyleSheet.create({
+  page: { flex: 1, backgroundColor: '#FFF9F0' },
+  content: { paddingHorizontal: 16, paddingBottom: 50, alignItems: 'center' },
+  column: { width: '100%', maxWidth: 760, gap: 18 },
+  header: { width: '100%', maxWidth: 760, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingTop: 22 },
+  back: { width: 75, flexDirection: 'row', alignItems: 'center' },
+  backText: { color: PURPLE, fontSize: 15, fontWeight: '600' },
+  title: { fontSize: 24, fontWeight: '800', color: NAVY },
+  subtitle: { color: '#75819B', textAlign: 'center', fontSize: 14, lineHeight: 21, marginTop: 10, marginBottom: 24, maxWidth: 520 },
+  loading: { padding: 60, alignItems: 'center', gap: 16 },
+  card: { backgroundColor: '#FFFFFF', borderRadius: 23, padding: 20, borderWidth: 1, borderColor: '#F0EDE7' },
+  gardenCard: { backgroundColor: '#F1F9E8', borderRadius: 25, padding: 22, alignItems: 'center', borderWidth: 1, borderColor: '#E0EECF' },
+  gardenArt: { fontSize: 44, marginVertical: 12, textAlign: 'center' },
+  gardenTitle: { color: NAVY, fontSize: 24, fontWeight: '800', marginBottom: 8 },
+  gardenMessage: { color: '#536E57', fontSize: 15, textAlign: 'center', lineHeight: 22 },
+  gardenStats: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', marginTop: 20, marginBottom: 12, gap: 22 },
+  gardenStat: { alignItems: 'center', minWidth: 115 },
+  statNumber: { fontSize: 28, fontWeight: '800', color: '#327A4C' },
+  statLabel: { fontSize: 13, color: '#56765C', marginTop: 3 },
+  statDivider: { width: 1, height: 36, backgroundColor: '#C7DDBE' },
+  gardenBalance: { color: '#56765C', fontSize: 13, textAlign: 'center', marginBottom: 16 },
+  primaryButton: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10, backgroundColor: PURPLE, borderRadius: 16, minHeight: 52, paddingHorizontal: 25, width: '100%', maxWidth: 380 },
+  primaryButtonText: { color: '#FFFFFF', fontSize: 16, fontWeight: '800' },
+  sectionHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8, marginBottom: 8 },
+  sectionTitle: { fontSize: 19, fontWeight: '800', color: NAVY, flexShrink: 1 },
+  sectionSubtitle: { color: '#7B8597', fontSize: 13, marginBottom: 14 },
+  count: { fontSize: 12, color: '#66836E', fontWeight: '700' },
+  skillRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 13, borderBottomWidth: 1, borderBottomColor: '#F1F1F1', gap: 12 },
+  skillIcon: { width: 43, height: 43, borderRadius: 13, backgroundColor: '#FFF4DE', alignItems: 'center', justifyContent: 'center' },
+  skillEmoji: { fontSize: 23 },
+  flex: { flex: 1 },
+  skillName: { fontSize: 15, fontWeight: '750', color: NAVY, marginBottom: 4 },
+  muted: { fontSize: 13, color: '#8490A3', lineHeight: 20 },
+  historyItem: { borderTopWidth: 1, borderTopColor: '#F0F0F0' },
+  historyTop: { flexDirection: 'row', alignItems: 'center', paddingVertical: 14, gap: 10 },
+  historyIcon: { width: 42, height: 42, borderRadius: 13, backgroundColor: '#EEF1FF', alignItems: 'center', justifyContent: 'center' },
+  outcomeChip: { width: 35, height: 35, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
+  outcomeEmoji: { fontSize: 21 },
+  historyDetails: { paddingHorizontal: 12, paddingBottom: 15, paddingTop: 2, backgroundColor: '#FCFCFF', borderRadius: 12 },
+  outcomeText: { fontSize: 14, color: NAVY, marginTop: 10, marginBottom: 4 },
+  note: { marginTop: 10 },
+  noteLabel: { fontSize: 12, fontWeight: '700', color: '#63728A' },
+  noteValue: { fontSize: 14, color: '#36445D', marginTop: 3, lineHeight: 20 },
+  showMore: { flexDirection: 'row', justifyContent: 'center', alignItems: 'center', paddingTop: 18, gap: 8 },
+  link: { color: PURPLE, fontWeight: '800', fontSize: 14 },
+  empty: { alignItems: 'center', padding: 24, gap: 9 },
+  emptyEmoji: { fontSize: 34 },
+  footer: { color: '#8B967E', textAlign: 'center', fontSize: 13, marginTop: 2 },
+  error: { color: '#B42318', fontSize: 14 },
 });
