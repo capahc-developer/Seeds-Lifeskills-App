@@ -1,11 +1,12 @@
 import React, { useCallback, useState } from 'react';
-import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { router, useFocusEffect } from 'expo-router';
 import { doc, getDoc, getDocs, orderBy, query, runTransaction } from 'firebase/firestore';
 import { auth, db } from '../lib/firebase';
 import { practiceLogsForCurrentUser } from '../lib/userData';
-import { GardenBackdrop, IllustratedPlant } from '../components/GardenIllustration';
+import { GardenBackdrop } from '../components/GardenIllustration';
+import { FLOWER_TYPES, flowerImageSource } from '../components/GardenFlowerAssets';
 
 const STAGES = [
   { emoji: '🫘', name: 'Seed' },
@@ -27,6 +28,7 @@ export default function GardenScreen() {
   const [working, setWorking] = useState(false);
   const [error, setError] = useState('');
   const [message, setMessage] = useState('');
+  const [selectedFlower, setSelectedFlower] = useState('sunflower');
 
   const refresh = useCallback(async () => {
     const [logsSnapshot, gardenSnapshot] = await Promise.all([
@@ -80,7 +82,8 @@ export default function GardenScreen() {
         let nextPlants;
         if (action === 'plant') {
           if (savedPlants.length >= earned) throw new Error('No seeds available yet. Log a practice to earn one!');
-          nextPlants = [...savedPlants, { id: `${Date.now()}-${Math.random().toString(36).slice(2)}`, stage: 0 }];
+          nextPlants = [...savedPlants, { id: `${Date.now()}-${Math.random().toString(36).slice(2)}`, type: FLOWER_TYPES[Math.floor(Math.random() * FLOWER_TYPES.length)],
+stage: 0 }];<View style={s.flowerPicker}>
         } else {
           if (spentWater >= earned) throw new Error('No watering credits left. Log a practice to earn one!');
           const target = savedPlants.find(p => p.id === plantId);
@@ -123,12 +126,16 @@ export default function GardenScreen() {
                 {plants.map((plant, i) => {
                   const stage = STAGES[Math.min(3, Math.max(0, plant.stage || 0))];
                   const canWater = waterAvailable > 0 && plant.stage < 3 && !working;
+                  const flowerType = plant.type || FLOWER_TYPES[i % FLOWER_TYPES.length];
+                  // Future custom flowers may supply customStages: [seedURL, sproutURL, plantURL, flowerURL].
+                  const customURL = Array.isArray(plant.customStages) ? plant.customStages[plant.stage] : null;
+                  const imageSource = customURL ? { uri: customURL } : flowerImageSource(flowerType, plant.stage);
                   return (
                     <Pressable key={plant.id} accessibilityRole="button"
                       accessibilityLabel={`Plant ${i + 1}, ${stage.name}. ${canWater ? 'Tap to water' : 'Cannot water now'}`}
                       disabled={!canWater} onPress={() => changeGarden('water', plant.id)}
                       style={[s.illustratedPot, canWater && s.waterable]}>
-                      <IllustratedPlant stage={plant.stage} index={i} />
+                      <Image source={imageSource} resizeMode="contain" style={s.flowerArt} />
                       <Text style={s.plantLabel}>{stage.name}</Text>
                       {canWater && <Text style={s.waterHint}>💧 Water me</Text>}
                       {plant.stage >= 3 && <Text style={s.grown}>Fully grown!</Text>}
@@ -139,6 +146,19 @@ export default function GardenScreen() {
             ) : <Text style={s.empty}>Your garden is waiting for its first seed.</Text>}
             <Text style={s.note}>{plants.length} planted · {logsCount} practices logged</Text>
           </GardenBackdrop>
+          <View style={s.flowerPicker}>
+            <Text style={s.pickerHeading}>Choose your next flower</Text>
+            <View style={s.flowerOptions}>
+              {FLOWER_TYPES.map(type => (
+                <Pressable key={type} accessibilityRole="button" accessibilityLabel={`Choose ${type}`}
+                  onPress={() => setSelectedFlower(type)}
+                  style={[s.flowerOption, selectedFlower === type && s.flowerOptionSelected]}>
+                  <Image source={flowerImageSource(type, 3)} resizeMode="contain" style={s.flowerPreview} />
+                  <Text style={s.flowerOptionName}>{type[0].toUpperCase() + type.slice(1)}</Text>
+                </Pressable>
+              ))}
+            </View>
+          </View>
           <Pressable disabled={working || seedsAvailable < 1}
             style={[s.button, (working || seedsAvailable < 1) && s.disabled]}
             onPress={() => changeGarden('plant')}>
@@ -169,6 +189,14 @@ const s = StyleSheet.create({
   garden: { backgroundColor: '#E0F3DE', borderRadius: 28, padding: 18, alignItems: 'center', minHeight: 240 },
   sun: { fontSize: 30, marginBottom: 16 },
   plantGrid: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'center', columnGap: 6, rowGap: 18 },
+  flowerArt: { width: 91, height: 145 },
+  flowerPicker: { backgroundColor: '#FFF', borderRadius: 18, padding: 14, marginTop: 16 },
+  pickerHeading: { color: '#346C48', fontWeight: '800', fontSize: 16, marginBottom: 12 },
+  flowerOptions: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'center', gap: 8 },
+  flowerOption: { width: 91, alignItems: 'center', padding: 6, borderWidth: 2, borderColor: '#E4F1E3', borderRadius: 12 },
+  flowerOptionSelected: { borderColor: '#409D62', backgroundColor: '#EAF8E8' },
+  flowerPreview: { width: 65, height: 76 },
+  flowerOptionName: { fontSize: 11, color: '#356B49', fontWeight: '700' },
   illustratedPot: { alignItems: 'center', width: 98, paddingBottom: 7, borderRadius: 12, borderWidth: 2, borderColor: 'transparent', backgroundColor: 'rgba(255,255,255,0.12)' },
   plant: { minWidth: 90, backgroundColor: '#F8FFF6', borderRadius: 16, padding: 12, alignItems: 'center', borderWidth: 2, borderColor: 'transparent' },
   waterable: { borderColor: '#FFF5B8' },
