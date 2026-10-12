@@ -343,6 +343,7 @@ export default function VisualTemplateBuilder() {
     [firebaseBackgrounds]
   );
 
+  const [localPrintBackground, setLocalPrintBackground] = useState('');
   const selectedBackground = useMemo(
     () =>
       backgroundOptions.find((item) => item.id === backgroundId) ||
@@ -892,6 +893,93 @@ export default function VisualTemplateBuilder() {
     return true;
   }
 
+
+  async function createWebPageImages() {
+    const load = (src) => new Promise((resolve, reject) => {
+      const img = new window.Image();
+      img.onload = () => resolve(img);
+      img.onerror = () => reject(new Error('Could not load image'));
+      img.src = src;
+    });
+    let bg = null;
+    if (selectedBackground.imageUrl) {
+      let uri = localPrintBackground;
+      if (!uri) {
+        try { uri = await getPrintableBackgroundDataUri(); }
+        catch (_) { throw new Error('Background access is blocked. Save your selected background to your computer, use "Choose Local Print Background", and try again.'); }
+      }
+      bg = await load(uri);
+    }
+    const images = [];
+    const W = 1275, H = 1650;
+    let start = 0;
+    while (start < steps.length || images.length === 0) {
+      const first = images.length === 0;
+      const count = templateId === 'photo-top' ? 2 : first ? 3 : 4;
+      const indices = Array.from({length: Math.min(count, steps.length - start)}, (_, i) => start + i);
+      const canvas = document.createElement('canvas');
+      canvas.width = W; canvas.height = H;
+      const ctx = canvas.getContext('2d');
+      ctx.fillStyle = selectedBackground.pageBg; ctx.fillRect(0,0,W,H);
+      if (bg) {
+        const scale = Math.max(W/bg.width,H/bg.height), w=bg.width*scale,h=bg.height*scale;
+        ctx.globalAlpha=.9;ctx.drawImage(bg,(W-w)/2,(H-h)/2,w,h);ctx.globalAlpha=1;
+      }
+      const card = (x,y,w,h) => {ctx.fillStyle='rgba(255,255,255,.94)';ctx.beginPath();ctx.roundRect(x,y,w,h,26);ctx.fill();};
+      let y=45;
+      if(first) {
+        card(45,y,1185,210);
+        ctx.fillStyle=selectedBackground.accent;ctx.font='bold 19px Arial';ctx.fillText('INDEPENDENT STEPS',82,98);
+        ctx.fillStyle=selectedBackground.text;ctx.font='bold 46px Arial';ctx.fillText(String(skill?.title||'Visual Schedule').slice(0,42),82,163);
+        ctx.font='23px Arial';ctx.fillText('Follow one step at a time.',82,214);y=285;
+      }
+      const h=templateId==='photo-top'?530:285;
+      for(const index of indices) {
+        card(45,y,1185,h);
+        ctx.fillStyle=selectedBackground.accent;ctx.beginPath();ctx.arc(94,y+65,30,0,Math.PI*2);ctx.fill();
+        ctx.fillStyle='#fff';ctx.font='bold 28px Arial';ctx.textAlign='center';ctx.fillText(String(index+1),94,y+75);ctx.textAlign='left';
+        ctx.fillStyle=selectedBackground.accent;ctx.font='bold 18px Arial';ctx.fillText('STEP '+(index+1),150,y+66);
+        ctx.fillStyle=selectedBackground.text;ctx.font='bold 29px Arial';
+        const max=templateId==='photo-top'?1010:700;
+        const words=personalizeStep(steps[index],firstName).split(/\s+/);let line='',lines=[];
+        for(const word of words){const next=line?line+' '+word:word;if(line&&ctx.measureText(next).width>max){lines.push(line);line=word;}else line=next;}
+        if(line)lines.push(line);
+        lines.slice(0,templateId==='photo-top'?2:4).forEach((txt,j)=>ctx.fillText(txt,150,y+120+j*40));
+        if(templateId!=='text-only') {
+          const px=templateId==='photo-top'?80:900,py=templateId==='photo-top'?y+170:y+25;
+          const pw=templateId==='photo-top'?1100:290,ph=templateId==='photo-top'?320:235;
+          const photo=photoDataUri(photos[index]);
+          if(photo) {
+            const img=await load(photo),scale=Math.min(pw/img.width,ph/img.height);
+            ctx.drawImage(img,px+(pw-img.width*scale)/2,py+(ph-img.height*scale)/2,img.width*scale,img.height*scale);
+          } else {
+            ctx.strokeStyle=selectedBackground.placeholderBorder;ctx.setLineDash([10,8]);ctx.strokeRect(px,py,pw,ph);ctx.setLineDash([]);
+            ctx.fillStyle=selectedBackground.muted;ctx.font='18px Arial';ctx.textAlign='center';ctx.fillText('Add a photo here',px+pw/2,py+ph/2);ctx.textAlign='left';
+          }
+        }
+        y+=h+22;
+      }
+      ctx.fillStyle=selectedBackground.muted;ctx.font='17px Arial';ctx.textAlign='center';
+      ctx.fillText('For privacy considerations, photos are saved only on this device.',W/2,1615);
+      images.push(canvas.toDataURL('image/png'));start+=indices.length;
+    }
+    return images;
+  }
+
+  function openImagePages(tab, images) {
+    if(!tab||tab.closed){window.alert('Please allow pop-ups to view the printable pages.');return;}
+    const name=String(skill?.title||'Visual').replace(/[^a-z0-9_-]/gi,'_');
+    const pages=images.map((src,i)=>'<section><img src="'+src+'"/><a href="'+src+'" download="'+name+'_page_'+(i+1)+'.png">Download page '+(i+1)+'</a></section>').join('');
+    tab.document.open();
+    tab.document.write('<!doctype html><html><head><title>Printable visual images</title><style>@page{size:letter;margin:0}body{margin:0;background:#ddd;font-family:Arial}header{position:sticky;top:0;background:white;text-align:center;padding:12px}button{font-size:18px;padding:10px}section{width:8.5in;margin:20px auto;break-after:page}section img{width:100%;display:block}a{display:block;text-align:center;padding:12px}@media print{body{background:white}header,a{display:none}section{width:8.5in;height:11in;margin:0;break-after:page}section:last-child{break-after:auto}}</style></head><body><header><button onclick="window.print()">Print images</button> &nbsp; Download each page below</header>'+pages+'</body></html>');
+    tab.document.close();
+  }
+
+  function chooseLocalPrintBackground() {
+    const input=document.createElement('input');input.type='file';input.accept='image/*';
+    input.onchange=()=>{const file=input.files?.[0];if(!file)return;const reader=new FileReader();reader.onload=()=>setLocalPrintBackground(String(reader.result));reader.readAsDataURL(file);};
+    input.click();
+  }
   // Browser PDFs are drawn directly onto independent PDF pages. This avoids
   // Chrome's HTML pagination, which was splitting cards and stretching artwork.
   async function createWebPdf() {
@@ -1020,35 +1108,17 @@ export default function VisualTemplateBuilder() {
 
   async function printTemplate() {
     if (Platform.OS === 'web') {
-      // Open synchronously during the click. Browsers block window.open()
-      // after an awaited PDF generation operation.
-      const printTab = window.open('', '_blank');
-      if (printTab) {
-        printTab.document.title = 'Preparing visual template PDF';
-        printTab.document.body.textContent = 'Preparing your printable PDF...';
-      }
+      const tab = window.open('', '_blank');
+      if(tab)tab.document.body.textContent='Preparing printable images...';
       try {
         setWorking(true);
-        const url = await createWebPdf();
-        if (printTab && !printTab.closed) {
-          printTab.location.replace(url);
-        } else {
-          // Pop-ups may be disabled; offer a direct download instead.
-          const link = document.createElement('a');
-          link.href = url;
-          link.download = (skill?.title || 'Visual Schedule').replace(/[^a-z0-9-]/gi, '_') + '.pdf';
-          document.body.appendChild(link);
-          link.click();
-          link.remove();
-          window.alert('The PDF was downloaded. Open it and choose Print.');
-        }
-      } catch (error) {
-        if (printTab && !printTab.closed) printTab.close();
-        console.error('Print template error:', error);
-        window.alert(error.message || 'Could not prepare the printable background.');
-      } finally {
-        setWorking(false);
-      }
+        const images=await createWebPageImages();
+        openImagePages(tab,images);
+      } catch(error) {
+        if(tab&&!tab.closed)tab.close();
+        console.error('Printable image error:',error);
+        window.alert(error?.message||'Could not create printable images.');
+      } finally {setWorking(false);}
       return;
     }
 
@@ -1066,19 +1136,17 @@ export default function VisualTemplateBuilder() {
 
   async function shareTemplate() {
     if (Platform.OS === 'web') {
+      const tab = window.open('', '_blank');
+      if(tab)tab.document.body.textContent='Preparing printable images...';
       try {
         setWorking(true);
-        const url = await createWebPdf();
-        const link = document.createElement('a');
-        link.href = url;
-        link.download = (skill?.title || 'Visual Schedule').replace(/[^a-z0-9-]/gi, '_') + '.pdf';
-        link.click();
-      } catch (error) {
-        console.error('PDF template error:', error);
-        window.alert(error.message || 'Could not prepare the PDF background.');
-      } finally {
-        setWorking(false);
-      }
+        const images=await createWebPageImages();
+        openImagePages(tab,images);
+      } catch(error) {
+        if(tab&&!tab.closed)tab.close();
+        console.error('Printable image error:',error);
+        window.alert(error?.message||'Could not create printable images.');
+      } finally {setWorking(false);}
       return;
     }
 
@@ -1397,6 +1465,12 @@ export default function VisualTemplateBuilder() {
           <Ionicons name="save-outline" size={20} color="#FFFFFF" />
           <Text style={s.primaryText}>{savingPhotos ? 'Saving Photos...' : 'Save Photos on This Device'}</Text>
         </Pressable>
+        {Platform.OS === 'web' && selectedBackground.imageUrl && (
+          <Pressable onPress={chooseLocalPrintBackground} style={{padding:14,backgroundColor:'#FFFFFF',borderRadius:12,alignItems:'center'}}>
+            <Text style={{fontWeight:'700',color:selectedBackground.text}}>{localPrintBackground ? 'Local Print Background Ready (Change)' : 'Choose Local Print Background'}</Text>
+            <Text style={{fontSize:12,color:selectedBackground.muted,textAlign:'center'}}>Use a saved copy of the selected background if browser access is blocked.</Text>
+          </Pressable>
+        )}
         <Pressable
           style={[
             s.primaryButton,
@@ -1428,7 +1502,7 @@ export default function VisualTemplateBuilder() {
             color={selectedBackground.accent}
           />
           <Text style={[s.secondaryText, { color: selectedBackground.accent }]}>
-            Share PDF
+            {Platform.OS === 'web' ? 'Download Images' : 'Share PDF'}
           </Text>
         </Pressable>
       </View>
