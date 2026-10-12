@@ -30,12 +30,21 @@ import { db } from '../../lib/firebase';
 
 
 const ratingInfo = [
-  { label: 'Great', emoji: '😄' },
-  { label: 'Good', emoji: '🙂' },
-  { label: 'Okay', emoji: '😐' },
-  { label: 'Hard', emoji: '☹️' },
-  { label: 'Very hard', emoji: '😣' },
+  { label: 'Did it independently', emoji: '😊' },
+  { label: 'Some help needed', emoji: '😐' },
+  { label: 'Hard today', emoji: '😟' },
 ];
+const legacyRatings = {
+  Great: 'Did it independently',
+  Good: 'Did it independently',
+  Okay: 'Some help needed',
+  Hard: 'Hard today',
+  'Very hard': 'Hard today',
+};
+const normalizeRating = (log) => {
+  const value = log.rating || log.outcome;
+  return legacyRatings[value] || value;
+};
 
 
 export default function SkillReport() {
@@ -172,7 +181,7 @@ export default function SkillReport() {
       const count =
         recentLogs.filter(
           (log) =>
-            log.rating === rating.label
+            normalizeRating(log) === rating.label
         ).length;
 
 
@@ -191,29 +200,6 @@ export default function SkillReport() {
       };
 
     });
-
-
-  // --------------------------------
-  // SUCCESS RATE
-  // --------------------------------
-
-  const successfulSessions =
-    recentLogs.filter(
-      (log) =>
-        log.rating === 'Good' ||
-        log.rating === 'Great'
-    ).length;
-
-
-  const successRate =
-    totalSessions > 0
-      ? Math.round(
-          (
-            successfulSessions /
-            totalSessions
-          ) * 100
-        )
-      : 0;
 
 
   if (loading) {
@@ -248,7 +234,7 @@ export default function SkillReport() {
 
         <Pressable
           style={s.backButton}
-          onPress={() => router.back()}
+          onPress={() => router.canGoBack() ? router.back() : router.replace('/reports')}
         >
 
           <Text style={s.backButtonText}>
@@ -277,7 +263,7 @@ export default function SkillReport() {
 
         <Pressable
           style={s.headerBack}
-          onPress={() => router.back()}
+          onPress={() => router.canGoBack() ? router.back() : router.replace('/reports')}
         >
 
           <Ionicons
@@ -372,11 +358,11 @@ export default function SkillReport() {
           />
 
           <Text style={s.metric}>
-            {successRate}%
+            {ratingCounts[0].count}
           </Text>
 
           <Text style={s.metricLabel}>
-            Success Rate
+            Independent Practices
           </Text>
 
         </View>
@@ -462,13 +448,12 @@ export default function SkillReport() {
         ) : (
 
           recentLogs
-            .slice(0, 5)
             .map((log) => {
 
               const rating =
                 ratingInfo.find(
                   (r) =>
-                    r.label === log.rating
+                    r.label === normalizeRating(log)
                 );
 
 
@@ -488,7 +473,7 @@ export default function SkillReport() {
 
                     <Text style={s.logRating}>
                       {rating?.emoji}{' '}
-                      {log.rating}
+                      {normalizeRating(log) || 'Not rated'}
                     </Text>
 
                   </View>
@@ -503,6 +488,15 @@ export default function SkillReport() {
                   )}
 
 
+                  {!!log.whatWentWell && (
+                    <Text style={s.logComment}>Went well: {log.whatWentWell}</Text>
+                  )}
+                  {!!log.whatWasDifficult && (
+                    <Text style={s.logComment}>Difficult: {log.whatWasDifficult}</Text>
+                  )}
+                  {!!(log.additionalNotes || log.adjustment) && (
+                    <Text style={s.logComment}>Notes: {log.additionalNotes || log.adjustment}</Text>
+                  )}
                   {!!log.comments && (
 
                     <Text style={s.logComment}>
@@ -526,15 +520,11 @@ export default function SkillReport() {
 
       <Pressable
         style={s.strategyButton}
-        onPress={() =>
-          router.push(
-            `/skill/${skill.id}/strategies`
-          )
-        }
+        onPress={() => router.replace('/reports')}
       >
 
         <Text style={s.strategyButtonText}>
-          View Skill Strategies
+          Back to Reports
         </Text>
 
 
