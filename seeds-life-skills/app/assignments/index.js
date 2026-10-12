@@ -66,6 +66,13 @@ export default function PracticeLogScreen() {
         const user = auth.currentUser;
         if (!user) throw new Error('Please sign in to view your skills.');
 
+        const [builtInSnapshot, customSnapshot, logSnapshot] = await Promise.all([
+          getDocs(query(collection(db, 'skills'), where('active', '==', true))),
+          getDocs(collection(db, 'users', user.uid, 'customSkills')),
+          getDocs(practiceLogsForCurrentUser()),
+        ]);
+        if (!active) return;
+
         // Official skills are managed in Firestore. Keep the historical
         // duplicate hidden, but preserve all previously saved practice logs.
         const builtIn = builtInSnapshot.docs
