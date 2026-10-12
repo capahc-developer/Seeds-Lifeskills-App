@@ -18,6 +18,7 @@ import { getBytes, getDownloadURL, listAll, ref as storageRef } from 'firebase/s
 import * as ImagePicker from 'expo-image-picker';
 import * as Print from 'expo-print';
 import * as Sharing from 'expo-sharing';
+import * as FileSystem from 'expo-file-system/legacy';
 
 import { auth, db, storage } from '../../../lib/firebase';
 import { findIndependentStepsSkill } from '../../../data/independentStepsSkills';
@@ -180,6 +181,8 @@ export default function VisualTemplateBuilder() {
   const [backgroundsError, setBackgroundsError] = useState('');
   const [loading, setLoading] = useState(true);
   const [working, setWorking] = useState(false);
+  const [savingPhotos, setSavingPhotos] = useState(false);
+  const [photosRestored, setPhotosRestored] = useState(false);
 
   useEffect(() => {
     const load = async () => {
@@ -316,6 +319,95 @@ export default function VisualTemplateBuilder() {
       backgroundThemes[0],
     [backgroundId, backgroundOptions]
   );
+
+  // Parent photos are stored only on this device, never in Firebase.
+  // Use the signed-in account in the key so accounts on one device do not mix.
+  const localPhotoKey = `seeds-visual-photos-${auth.currentUser?.uid || 'guest'}-${String(resolvedSkillId) === 'zip-winter-coat' ? 'zip-up-a-winter-coat' : resolvedSkillId}`;
+
+  useEffect(() => {
+    if (loading || !skill) return;
+    let cancelled = false;
+    setPhotosRestored(false);
+    const restore = async () => {
+      try {
+        let saved;
+        if (Platform.OS === 'web') {
+          saved = JSON.parse(window.localStorage.getItem(localPhotoKey) || 'null');
+        } else {
+          const folder = FileSystem.documentDirectory + 'seeds-visual-photos/';
+          const path = folder + encodeURIComponent(localPhotoKey) + '.json';
+          if (await FileSystem.getInfoAsync(path).then((info) => info.exists)) {
+            saved = JSON.parse(await FileSystem.readAsStringAsync(path));
+          }
+        }
+        if (!cancelled && saved?.entries) {
+          const restored = {};
+          for (const entry of saved.entries) {
+            const index = steps.findIndex((step, i) => step === entry.step && !restored[i]);
+            if (index < 0) continue;
+            if (Platform.OS === 'web' && entry.dataUri) {
+              restored[index] = { uri: entry.dataUri, base64: entry.dataUri.split(',')[1] || '', mimeType: entry.mimeType || 'image/jpeg' };
+            } else if (Platform.OS !== 'web' && entry.fileName) {
+              const uri = FileSystem.documentDirectory + 'seeds-visual-photos/' + entry.fileName;
+              if ((await FileSystem.getInfoAsync(uri)).exists) {
+                restored[index] = { uri, base64: await FileSystem.readAsStringAsync(uri, { encoding: FileSystem.EncodingType.Base64 }), mimeType: entry.mimeType || 'image/jpeg' };
+              }
+            }
+          }
+          if (!cancelled) setPhotos(restored);
+        }
+      } catch (error) {
+        console.warn('Could not restore local visual photos:', error);
+      } finally {
+        if (!cancelled) setPhotosRestored(true);
+      }
+    };
+    restore();
+    return () => { cancelled = true; };
+  }, [loading, skill?.id, localPhotoKey, steps.join('\\u0001')]);
+
+  async function savePhotosLocally() {
+    if (!photosRestored || savingPhotos) return;
+    setSavingPhotos(true);
+    try {
+      const entries = [];
+      const folder = Platform.OS === 'web' ? '' : FileSystem.documentDirectory + 'seeds-visual-photos/';
+      if (Platform.OS !== 'web') await FileSystem.makeDirectoryAsync(folder, { intermediates: true });
+      for (let i = 0; i < steps.length; i++) {
+        const photo = photos[i];
+        if (!photo?.uri) continue;
+        const mimeType = photo.mimeType || 'image/jpeg';
+        let base64 = photo.base64;
+        if (!base64 && Platform.OS !== 'web') {
+          base64 = await FileSystem.readAsStringAsync(photo.uri, { encoding: FileSystem.EncodingType.Base64 });
+        }
+        if (!base64) throw new Error('Photo data unavailable for step ' + (i + 1));
+        const entry = { step: steps[i], mimeType };
+        if (Platform.OS === 'web') {
+          entry.dataUri = `data:${mimeType};base64,${base64}`;
+        } else {
+          entry.fileName = encodeURIComponent(localPhotoKey) + '-step-' + i + (mimeType === 'image/png' ? '.png' : '.jpg');
+          await FileSystem.writeAsStringAsync(folder + entry.fileName, base64, { encoding: FileSystem.EncodingType.Base64 });
+        }
+        entries.push(entry);
+      }
+      const manifest = JSON.stringify({ entries });
+      if (Platform.OS === 'web') {
+        window.localStorage.setItem(localPhotoKey, manifest);
+        window.alert('Photos saved in this browser on this device.');
+      } else {
+        await FileSystem.writeAsStringAsync(folder + encodeURIComponent(localPhotoKey) + '.json', manifest);
+        Alert.alert('Photos saved', 'Your photos are saved on this device only.');
+      }
+    } catch (error) {
+      console.error('Save local visual photos failed:', error);
+      const message = 'Could not save photos. Check available device or browser storage and try again.';
+      if (Platform.OS === 'web') window.alert(message);
+      else Alert.alert('Save failed', message);
+    } finally {
+      setSavingPhotos(false);
+    }
+  }
 
   async function choosePhoto(stepIndex) {
     try {
@@ -1088,6 +1180,14 @@ export default function VisualTemplateBuilder() {
 
       <View style={s.actions}>
         <Pressable
+          style={[s.primaryButton, { backgroundColor: '#7559E8' }, (!photosRestored || savingPhotos) && s.disabled]}
+          onPress={savePhotosLocally}
+          disabled={!photosRestored || savingPhotos}
+        >
+          <Ionicons name="save-outline" size={20} color="#FFFFFF" />
+          <Text style={s.primaryText}>{savingPhotos ? 'Saving Photos...' : 'Save Photos on This Device'}</Text>
+        </Pressable>
+        <Pressable
           style={[
             s.primaryButton,
             { backgroundColor: selectedBackground.accent },
@@ -1124,8 +1224,8 @@ export default function VisualTemplateBuilder() {
       </View>
 
       <Text style={[s.localNote, { color: selectedBackground.muted }]}>
-        Closing this screen clears the selected photos from the app session. No child
-        photo data is written to Firestore or Firebase Storage.
+        Tap Save Photos to keep selected photos on this device for next time.
+        Unsaved changes are lost when you leave. No child photos are uploaded to Firebase.
       </Text>
     </ScrollView>
   );
