@@ -160,21 +160,29 @@ export default function VisualTemplateBuilder() {
         setLoading(true);
 
         const fallbackSkill = findIndependentStepsSkill(resolvedSkillId);
-        const skillSnap = await getDoc(doc(db, 'skills', String(resolvedSkillId)));
+        let loadedSkill = fallbackSkill;
 
-        if (!skillSnap.exists() && !fallbackSkill) {
+        try {
+          const skillSnap = await getDoc(doc(db, 'skills', String(resolvedSkillId)));
+          if (skillSnap.exists()) {
+            loadedSkill = {
+              ...fallbackSkill,
+              id: skillSnap.id,
+              ...skillSnap.data(),
+            };
+          }
+        } catch (firebaseError) {
+          console.warn(
+            'Built-in skill could not load from Firestore; using bundled skill:',
+            firebaseError?.code || firebaseError?.message || firebaseError
+          );
+        }
+
+        if (!loadedSkill) {
           setSkill(null);
           setSteps([]);
           return;
         }
-
-        const loadedSkill = skillSnap.exists()
-          ? {
-              ...fallbackSkill,
-              id: skillSnap.id,
-              ...skillSnap.data(),
-            }
-          : fallbackSkill;
 
         let nextSteps =
           Array.isArray(loadedSkill.steps) && loadedSkill.steps.length
@@ -183,22 +191,31 @@ export default function VisualTemplateBuilder() {
 
         const user = auth.currentUser;
         if (user) {
-          const customSnap = await getDoc(
-            doc(
-              db,
-              'users',
-              user.uid,
-              'skillCustomizations',
-              String(resolvedSkillId)
-            )
-          );
+          try {
+            const customSnap = await getDoc(
+              doc(
+                db,
+                'users',
+                user.uid,
+                'skillCustomizations',
+                String(resolvedSkillId)
+              )
+            );
 
-          if (
-            customSnap.exists() &&
-            Array.isArray(customSnap.data().steps) &&
-            customSnap.data().steps.length
-          ) {
-            nextSteps = customSnap.data().steps;
+            if (
+              customSnap.exists() &&
+              Array.isArray(customSnap.data().steps) &&
+              customSnap.data().steps.length
+            ) {
+              nextSteps = customSnap.data().steps;
+            }
+          } catch (customizationError) {
+            console.warn(
+              'Skill customization could not load; using default steps:',
+              customizationError?.code ||
+                customizationError?.message ||
+                customizationError
+            );
           }
         }
 
