@@ -986,8 +986,7 @@ export default function VisualTemplateBuilder() {
             Photos stay private
           </Text>
           <Text style={[s.privacyText, { color: selectedBackground.muted }]}>
-            Photos you choose stay on this device. They are not uploaded to Firebase
-            and are not sent to the AI assistant.
+            For privacy considerations, photos are saved only on this device.
           </Text>
         </View>
       </View>
