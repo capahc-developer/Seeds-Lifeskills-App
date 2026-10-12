@@ -46,7 +46,8 @@
     "expo-print": "~57.0.2",
     "expo-sharing": "~57.0.22",
     "expo-file-system": "~19.0.17",
-    "pdf-lib": "^1.17.1"
+    "pdf-lib": "^1.17.1",
+    "react-native-view-shot": "~4.0.3"
   },
   "devDependencies": {
     "@types/react": "~19.2.4",
