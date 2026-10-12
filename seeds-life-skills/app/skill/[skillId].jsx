@@ -13,7 +13,7 @@ import { useEffect, useState } from 'react';
 import { doc, getDoc } from 'firebase/firestore';
 
 import { auth, db } from '../../lib/firebase';
-import { findIndependentStepsSkill } from '../../data/independentStepsSkills';
+
 
 const genericSteps = [
   'Get ready and gather what you need.',
@@ -37,27 +37,15 @@ export default function Skill() {
         setLoading(true);
         setError(false);
 
-        const skillRef = doc(db, 'skills', String(skillId));
+        const canonicalId = String(skillId) === 'zip-winter-coat' ? 'zip-up-a-winter-coat' : String(skillId);
+        const skillRef = doc(db, 'skills', canonicalId);
         const skillSnap = await getDoc(skillRef);
 
-        const fallbackSkill = findIndependentStepsSkill(skillId);
-
-        if (!skillSnap.exists() && !fallbackSkill) {
+        if (!skillSnap.exists() || skillSnap.data().active === false) {
           setError(true);
           return;
         }
-
-        const loadedSkill = skillSnap.exists()
-          ? {
-              ...fallbackSkill,
-              id: skillSnap.id,
-              ...skillSnap.data(),
-              videoUrl: skillSnap.data().videoUrl || fallbackSkill?.videoUrl,
-              resourceUrl:
-                skillSnap.data().resourceUrl || fallbackSkill?.resourceUrl,
-            }
-          : fallbackSkill;
-
+        const loadedSkill = { id: skillSnap.id, ...skillSnap.data() };
         setSkill(loadedSkill);
 
         let nextSteps =
@@ -66,16 +54,15 @@ export default function Skill() {
             : genericSteps;
 
         if (user) {
-          const customization = await getDoc(
-            doc(
-              db,
-              'users',
-              user.uid,
-              'skillCustomizations',
-              String(skillId)
-            )
+          let customization = await getDoc(
+            doc(db, 'users', user.uid, 'skillCustomizations', canonicalId)
           );
-
+          // Older versions saved coat customizations under the legacy ID.
+          if (!customization.exists() && canonicalId === 'zip-up-a-winter-coat') {
+            customization = await getDoc(
+              doc(db, 'users', user.uid, 'skillCustomizations', 'zip-winter-coat')
+            );
+          }
           if (
             customization.exists() &&
             Array.isArray(customization.data().steps) &&
