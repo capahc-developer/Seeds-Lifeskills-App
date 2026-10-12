@@ -1009,11 +1009,30 @@ export default function VisualTemplateBuilder() {
 
   async function printTemplate() {
     if (Platform.OS === 'web') {
+      // Open synchronously during the click. Browsers block window.open()
+      // after an awaited PDF generation operation.
+      const printTab = window.open('', '_blank');
+      if (printTab) {
+        printTab.document.title = 'Preparing visual template PDF';
+        printTab.document.body.textContent = 'Preparing your printable PDF...';
+      }
       try {
         setWorking(true);
         const url = await createWebPdf();
-        window.open(url, '_blank');
+        if (printTab && !printTab.closed) {
+          printTab.location.replace(url);
+        } else {
+          // Pop-ups may be disabled; offer a direct download instead.
+          const link = document.createElement('a');
+          link.href = url;
+          link.download = (skill?.title || 'Visual Schedule').replace(/[^a-z0-9-]/gi, '_') + '.pdf';
+          document.body.appendChild(link);
+          link.click();
+          link.remove();
+          window.alert('The PDF was downloaded. Open it and choose Print.');
+        }
       } catch (error) {
+        if (printTab && !printTab.closed) printTab.close();
         console.error('Print template error:', error);
         window.alert(error.message || 'Could not prepare the printable background.');
       } finally {
