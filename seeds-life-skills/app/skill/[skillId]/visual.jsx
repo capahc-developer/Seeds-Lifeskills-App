@@ -186,24 +186,16 @@ export default function VisualTemplateBuilder() {
       try {
         setLoading(true);
 
-        const fallbackSkill = findIndependentStepsSkill(resolvedSkillId);
-        let loadedSkill = fallbackSkill;
-
-        try {
-          const skillSnap = await getDoc(doc(db, 'skills', String(resolvedSkillId)));
-          if (skillSnap.exists()) {
-            loadedSkill = {
-              ...fallbackSkill,
-              id: skillSnap.id,
-              ...skillSnap.data(),
-            };
-          }
-        } catch (firebaseError) {
-          console.warn(
-            'Built-in skill could not load from Firestore; using bundled skill:',
-            firebaseError?.code || firebaseError?.message || firebaseError
-          );
-        }
+        // Resolve older coat links to the official Firestore skill ID.
+        const canonicalId = String(resolvedSkillId) === 'zip-winter-coat'
+          ? 'zip-up-a-winter-coat'
+          : String(resolvedSkillId);
+        const skillSnap = await getDoc(doc(db, 'skills', canonicalId));
+        const fallbackSkill = findIndependentStepsSkill(canonicalId)
+          || findIndependentStepsSkill(resolvedSkillId);
+        const loadedSkill = skillSnap.exists()
+          ? { ...fallbackSkill, id: skillSnap.id, ...skillSnap.data() }
+          : fallbackSkill;
 
         if (!loadedSkill) {
           setSkill(null);
@@ -218,30 +210,19 @@ export default function VisualTemplateBuilder() {
 
         const user = auth.currentUser;
         if (user) {
-          try {
-            const customSnap = await getDoc(
-              doc(
-                db,
-                'users',
-                user.uid,
-                'skillCustomizations',
-                String(resolvedSkillId)
-              )
+          // Always prefer this parent's saved steps over the skill defaults.
+          let customSnap = await getDoc(
+            doc(db, 'users', user.uid, 'skillCustomizations', canonicalId)
+          );
+          // Retain customizations saved by older app versions.
+          if (!customSnap.exists() && canonicalId === 'zip-up-a-winter-coat') {
+            customSnap = await getDoc(
+              doc(db, 'users', user.uid, 'skillCustomizations', 'zip-winter-coat')
             );
-
-            if (
-              customSnap.exists() &&
-              Array.isArray(customSnap.data().steps) &&
-              customSnap.data().steps.length
-            ) {
-              nextSteps = customSnap.data().steps;
-            }
-          } catch (customizationError) {
-            console.warn(
-              'Skill customization could not load; using default steps:',
-              customizationError?.code ||
-                customizationError?.message ||
-                customizationError
+          }
+          if (customSnap.exists() && Array.isArray(customSnap.data().steps)) {
+            nextSteps = customSnap.data().steps.filter(
+              (step) => typeof step === 'string' && step.trim().length > 0
             );
           }
         }
