@@ -1,8 +1,10 @@
 
-import React, { useCallback, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
+  Animated,
   Image,
+  PanResponder,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -63,6 +65,76 @@ function gardenRef() {
   return doc(db, 'users', uid, 'garden', 'state');
 }
 
+
+const FLOWER_WIDTH = 90;
+const FLOWER_HEIGHT = 132;
+const GRASS_AREA_HEIGHT = 280;
+const clamp = (n, min, max) => Math.max(min, Math.min(max, n));
+
+function DraggableFlower({ plant, index, gardenWidth, canWater, onWater, onMove }) {
+  const stage = safeStage(plant.stage);
+  const savedType = plant.type || AVAILABLE_FLOWERS[index % AVAILABLE_FLOWERS.length];
+  const flowerType = AVAILABLE_FLOWERS.includes(savedType) ? savedType : 'sunflower';
+  const customURL = Array.isArray(plant.customStages) ? plant.customStages[stage] : null;
+  const imageSource = customURL ? { uri: customURL } : flowerImageSource(flowerType, stage);
+
+  const maxX = Math.max(0, gardenWidth - FLOWER_WIDTH);
+  const maxY = GRASS_AREA_HEIGHT - FLOWER_HEIGHT;
+  const savedX = clamp(typeof plant.position?.x === 'number' ? plant.position.x : ((index % 3) + 0.5) / 3, 0, 1);
+  const savedY = clamp(typeof plant.position?.y === 'number' ? plant.position.y : Math.min(0.9, 0.15 + Math.floor(index / 3) * 0.24), 0, 1);
+  const animatedPosition = useRef(new Animated.ValueXY()).current;
+  const currentPosition = useRef({ x: 0, y: 0 });
+  const startPosition = useRef({ x: 0, y: 0 });
+  const latest = useRef({});
+  latest.current = { maxX, maxY, canWater, onWater, onMove };
+
+  useEffect(() => {
+    const position = { x: savedX * maxX, y: savedY * maxY };
+    currentPosition.current = position;
+    animatedPosition.setValue(position);
+  }, [savedX, savedY, maxX, maxY, animatedPosition]);
+
+  const panResponder = useMemo(() => PanResponder.create({
+    onStartShouldSetPanResponder: () => true,
+    onMoveShouldSetPanResponder: (_, g) => Math.abs(g.dx) > 4 || Math.abs(g.dy) > 4,
+    onPanResponderGrant: () => {
+      startPosition.current = { ...currentPosition.current };
+    },
+    onPanResponderMove: (_, g) => {
+      const { maxX: width, maxY: height } = latest.current;
+      const position = {
+        x: clamp(startPosition.current.x + g.dx, 0, width),
+        y: clamp(startPosition.current.y + g.dy, 0, height),
+      };
+      currentPosition.current = position;
+      animatedPosition.setValue(position);
+    },
+    onPanResponderRelease: (_, g) => {
+      const moved = Math.abs(g.dx) > 6 || Math.abs(g.dy) > 6;
+      const { maxX: width, maxY: height, canWater: waterable, onWater: water, onMove: move } = latest.current;
+      if (!moved) {
+        if (waterable) water();
+        return;
+      }
+      move({
+        x: width > 0 ? currentPosition.current.x / width : 0,
+        y: height > 0 ? currentPosition.current.y / height : 0,
+      });
+    },
+    onPanResponderTerminationRequest: () => false,
+  }), [animatedPosition]);
+
+  return (
+    <Animated.View
+      {...panResponder.panHandlers}
+      accessibilityLabel={`Flower ${index + 1}, ${STAGES[stage].name}. Drag to move, tap to water.`}
+      style={[s.draggableFlower, { transform: animatedPosition.getTranslateTransform() }]}
+    >
+      <Image source={imageSource} resizeMode="contain" style={s.dragFlowerArt} />
+    </Animated.View>
+  );
+}
+
 export default function GardenScreen() {
   const [logsCount, setLogsCount] = useState(0);
   const [garden, setGarden] = useState({ plants: [] });
@@ -70,6 +142,7 @@ export default function GardenScreen() {
   const [working, setWorking] = useState(false);
   const [error, setError] = useState('');
   const [message, setMessage] = useState('');
+  const [gardenWidth, setGardenWidth] = useState(300);
 
   const refresh = useCallback(async () => {
     const [logsSnapshot, gardenSnapshot] = await Promise.all([
@@ -157,6 +230,26 @@ export default function GardenScreen() {
     0,
     logsCount - waterUsed
   );
+
+  const moveFlower = async (plantId, position) => {
+    try {
+      await runTransaction(db, async transaction => {
+        const ref = gardenRef();
+        const snapshot = await transaction.get(ref);
+        if (!snapshot.exists()) return;
+        const plants = Array.isArray(snapshot.data().plants) ? snapshot.data().plants : [];
+        transaction.update(ref, {
+          plants: plants.map(plant => plant.id === plantId ? { ...plant, position } : plant),
+          updatedAt: new Date(),
+        });
+      });
+      await refresh();
+    } catch (e) {
+      console.error('Could not save flower position:', e);
+      setError('Could not save flower position. Please try again.');
+      await refresh();
+    }
+  };
 
   const changeGarden = async (action, plantId) => {
     if (working) return;
@@ -326,96 +419,25 @@ export default function GardenScreen() {
           )}
 
           <GardenBackdrop>
-            {plants.length ? (
-              <View style={s.plantGrid}>
-                {plants.map((plant, i) => {
-                  const stageNumber = safeStage(
-                    plant.stage
-                  );
-
-                  const stage = STAGES[stageNumber];
-
-                  const canWater =
-                    waterAvailable > 0 &&
-                    stageNumber < 3 &&
-                    !working;
-
-                  // Existing plants without a type still work.
-                  // Removed Daisy plants display as sunflowers.
-                  const savedType =
-                    plant.type ||
-                    AVAILABLE_FLOWERS[
-                      i % AVAILABLE_FLOWERS.length
-                    ];
-
-                  const flowerType =
-                    AVAILABLE_FLOWERS.includes(savedType)
-                      ? savedType
-                      : 'sunflower';
-
-                  // Supports future custom flower images.
-                  const customURL =
-                    Array.isArray(plant.customStages)
-                      ? plant.customStages[stageNumber]
-                      : null;
-
-                  const imageSource = customURL
-                    ? { uri: customURL }
-                    : flowerImageSource(
-                        flowerType,
-                        stageNumber
-                      );
-
-                  return (
-                    <Pressable
-                      key={plant.id}
-                      accessibilityRole="button"
-                      accessibilityLabel={`Plant ${
-                        i + 1
-                      }, ${stage.name}. ${
-                        canWater
-                          ? 'Tap to water'
-                          : 'Cannot water now'
-                      }`}
-                      disabled={!canWater}
-                      onPress={() =>
-                        changeGarden('water', plant.id)
-                      }
-                      style={[
-                        s.illustratedPot,
-                        canWater && s.waterable,
-                      ]}
-                    >
-                      <Image
-                        source={imageSource}
-                        resizeMode="contain"
-                        style={s.flowerArt}
-                      />
-
-                      <Text style={s.plantLabel}>
-                        {stage.name}
-                      </Text>
-
-                      {canWater && (
-                        <Text style={s.waterHint}>
-                          💧 Water me
-                        </Text>
-                      )}
-
-                      {stageNumber >= 3 && (
-                        <Text style={s.grown}>
-                          Fully grown!
-                        </Text>
-                      )}
-                    </Pressable>
-                  );
-                })}
-              </View>
-            ) : (
-              <Text style={s.empty}>
-                Your garden is waiting for its first seed.
-              </Text>
-            )}
+            <View
+              style={s.grassArea}
+              onLayout={event => setGardenWidth(event.nativeEvent.layout.width)}
+            >
+              {plants.map((plant, index) => (
+                <DraggableFlower
+                  key={plant.id}
+                  plant={plant}
+                  index={index}
+                  gardenWidth={gardenWidth}
+                  canWater={waterAvailable > 0 && safeStage(plant.stage) < 3 && !working}
+                  onWater={() => changeGarden('water', plant.id)}
+                  onMove={position => moveFlower(plant.id, position)}
+                />
+              ))}
+              {plants.length === 0 && (
+                <Text style={s.empty}>Your garden is waiting for its first seed.</Text>
+              )}
+            </View>
 
             <Text style={s.note}>
               {plants.length} planted · {logsCount} practices logged
@@ -535,47 +557,24 @@ const s = StyleSheet.create({
     color: '#607D66',
     marginTop: 5,
   },
-  plantGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    justifyContent: 'center',
-    columnGap: 6,
-    rowGap: 18,
+  grassArea: {
+    height: GRASS_AREA_HEIGHT,
+    width: '100%',
+    position: 'relative',
   },
-  flowerArt: {
-    width: 91,
-    height: 145,
-  },
-  illustratedPot: {
+  draggableFlower: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    width: FLOWER_WIDTH,
+    height: FLOWER_HEIGHT,
+    backgroundColor: 'transparent',
     alignItems: 'center',
-    width: 98,
-    paddingBottom: 7,
-    borderRadius: 12,
-    borderWidth: 2,
-    borderColor: 'transparent',
-    backgroundColor: 'rgba(255,255,255,0.12)',
+    justifyContent: 'flex-end',
   },
-  waterable: {
-    borderColor: '#FFF5B8',
-  },
-  plantLabel: {
-    color: '#285D35',
-    fontWeight: '800',
-    marginTop: 5,
-    backgroundColor: '#FFF6D8',
-    paddingHorizontal: 9,
-    borderRadius: 8,
-  },
-  waterHint: {
-    color: '#267B99',
-    fontSize: 12,
-    fontWeight: '700',
-    marginTop: 4,
-  },
-  grown: {
-    color: '#6E8B62',
-    fontSize: 11,
-    marginTop: 4,
+  dragFlowerArt: {
+    width: FLOWER_WIDTH,
+    height: FLOWER_HEIGHT,
   },
   empty: {
     color: '#66806A',
