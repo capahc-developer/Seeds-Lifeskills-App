@@ -47,6 +47,28 @@ const normalizeRating = (log) => {
 };
 
 
+const STATUS_COLORS = {
+  'Did it independently': '#42B96C',
+  'Some help needed': '#F2BF4A',
+  'Hard today': '#E77A80',
+};
+const dateKeyForLog = (log) => {
+  if (typeof log.practiceDate === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(log.practiceDate)) {
+    return log.practiceDate;
+  }
+  const timestamp = log.createdAt?.toDate?.();
+  if (timestamp instanceof Date && !Number.isNaN(timestamp.getTime())) {
+    return `${timestamp.getFullYear()}-${String(timestamp.getMonth() + 1).padStart(2, '0')}-${String(timestamp.getDate()).padStart(2, '0')}`;
+  }
+  if (log.date) {
+    const parsed = new Date(log.date);
+    if (!Number.isNaN(parsed.getTime())) {
+      return `${parsed.getFullYear()}-${String(parsed.getMonth() + 1).padStart(2, '0')}-${String(parsed.getDate()).padStart(2, '0')}`;
+    }
+  }
+  return null;
+};
+
 export default function SkillReport() {
 
   const { skillId } = useLocalSearchParams();
@@ -201,6 +223,25 @@ export default function SkillReport() {
 
     });
 
+
+  const practiceTimeline = useMemo(() => {
+    const grouped = new Map();
+    recentLogs.forEach((log) => {
+      const date = dateKeyForLog(log);
+      if (!date) return;
+      if (!grouped.has(date)) {
+        grouped.set(date, { date, counts: { 'Did it independently': 0, 'Some help needed': 0, 'Hard today': 0 }, total: 0 });
+      }
+      const row = grouped.get(date);
+      const status = normalizeRating(log);
+      if (Object.prototype.hasOwnProperty.call(row.counts, status)) {
+        row.counts[status] += 1;
+      }
+      row.total += 1;
+    });
+    return [...grouped.values()].sort((a, b) => a.date.localeCompare(b.date));
+  }, [recentLogs]);
+  const maxDailySessions = Math.max(1, ...practiceTimeline.map((day) => day.total));
 
   if (loading) {
 
@@ -429,6 +470,50 @@ export default function SkillReport() {
       </View>
 
 
+      {/* PRACTICE OVER TIME */}
+      <View style={s.card}>
+        <Text style={s.cardTitle}>Practice Over Time</Text>
+        <Text style={s.chartSubtitle}>Daily practice sessions in the last 4 weeks</Text>
+        <View style={s.chartLegend}>
+          {ratingInfo.map((rating) => (
+            <View key={rating.label} style={s.legendItem}>
+              <View style={[s.legendDot, { backgroundColor: STATUS_COLORS[rating.label] }]} />
+              <Text style={s.legendText}>{rating.label}</Text>
+            </View>
+          ))}
+        </View>
+        {practiceTimeline.length === 0 ? (
+          <Text style={s.emptyText}>No dated practice sessions to chart yet.</Text>
+        ) : (
+          <ScrollView horizontal showsHorizontalScrollIndicator={true} contentContainerStyle={s.timelineScroll}>
+            {practiceTimeline.map((day) => {
+              const parts = ratingInfo.filter((rating) => day.counts[rating.label] > 0);
+              return (
+                <View key={day.date} style={s.timelineColumn}>
+                  <Text style={s.barCount}>{day.total}</Text>
+                  <View style={s.barTrack}>
+                    <View style={[s.barStack, { height: Math.max(12, (day.total / maxDailySessions) * 130) }]}>
+                      {parts.map((rating) => (
+                        <View
+                          key={rating.label}
+                          style={{
+                            flex: day.counts[rating.label],
+                            backgroundColor: STATUS_COLORS[rating.label],
+                            width: '100%',
+                          }}
+                        />
+                      ))}
+                    </View>
+                  </View>
+                  <Text style={s.barDate}>{day.date.slice(5).replace('-', '/')}</Text>
+                </View>
+              );
+            })}
+          </ScrollView>
+        )}
+        <Text style={s.chartFootnote}>Bar height = number of sessions; color = recorded outcome.</Text>
+      </View>
+
       {/* RECENT LOGS */}
 
       <View style={s.card}>
@@ -655,6 +740,18 @@ const s = StyleSheet.create({
     marginBottom: 15,
   },
 
+  chartSubtitle: { color: '#718096', fontSize: 13, marginBottom: 12 },
+  chartLegend: { flexDirection: 'row', flexWrap: 'wrap', gap: 12, marginBottom: 15 },
+  legendItem: { flexDirection: 'row', alignItems: 'center', gap: 5 },
+  legendDot: { width: 10, height: 10, borderRadius: 5 },
+  legendText: { fontSize: 12, color: '#45556B' },
+  timelineScroll: { alignItems: 'flex-end', paddingBottom: 4, paddingRight: 8, minWidth: '100%' },
+  timelineColumn: { width: 54, alignItems: 'center', marginRight: 9 },
+  barCount: { fontSize: 12, color: '#45556B', fontWeight: '700', marginBottom: 5 },
+  barTrack: { height: 130, width: 29, justifyContent: 'flex-end', backgroundColor: '#F1F4F8', borderRadius: 5, overflow: 'hidden' },
+  barStack: { width: '100%', flexDirection: 'column', justifyContent: 'flex-end', overflow: 'hidden', borderRadius: 4 },
+  barDate: { fontSize: 11, color: '#718096', marginTop: 7 },
+  chartFootnote: { fontSize: 12, color: '#8290A2', marginTop: 12 },
   resultRow: {
     flexDirection: 'row',
     alignItems: 'center',
