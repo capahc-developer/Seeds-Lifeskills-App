@@ -51,7 +51,8 @@
         {
           "photosPermission": "Independent Steps uses photos you select only to build a visual template on your device. Photos are not uploaded to Firebase."
         }
-      ]
+      ],
+      "expo-sharing"
     ],
     "experiments": {
       "typedRoutes": true,
