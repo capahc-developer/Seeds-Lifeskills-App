@@ -8,6 +8,7 @@ import { auth } from '../lib/firebase';
 const cards = [
   {
     title: 'General Strategies',
+    emoji: '💡',
     subtitle:
       'Browse practical teaching strategies you can use across everyday skills.',
     icon: 'bulb-outline',
@@ -17,6 +18,7 @@ const cards = [
   },
   {
     title: 'My Skills',
+    emoji: '📚',
     subtitle:
       'Practice the Independent Steps skills and customize steps for your child.',
     icon: 'apps-outline',
@@ -26,6 +28,7 @@ const cards = [
   },
   {
     title: 'My Visuals',
+    emoji: '🖼️',
     subtitle:
       'Choose a skill, background, and add your own local photos.',
     icon: 'images-outline',
@@ -35,6 +38,7 @@ const cards = [
   },
   {
     title: 'Practice Log',
+    emoji: '📝',
     subtitle: 'Track progress and practice attempts.',
     icon: 'clipboard-outline',
     tint: '#E3F8EE',
@@ -43,6 +47,7 @@ const cards = [
   },
   {
     title: 'My Garden',
+    emoji: '🌻',
     subtitle: 'See the seeds planted with every practice.',
     icon: 'flower-outline',
     tint: '#E7F5DF',
@@ -51,6 +56,7 @@ const cards = [
   },
   {
     title: 'Reports',
+    emoji: '📊',
     subtitle: "See your child's progress over time.",
     icon: 'bar-chart-outline',
     tint: '#FFE9E7',
@@ -65,23 +71,28 @@ export default function HomeScreen() {
   return (
     <ScrollView style={styles.page} contentContainerStyle={styles.content}>
       <View style={styles.top}>
-        <View><Text style={styles.brand}>🌱 SEEDS</Text><Text style={styles.tag}>Skills for a brighter tomorrow</Text></View>
+        <View><Text style={styles.brand}>🌱 Independent Steps</Text><Text style={styles.tag}>Skills for a brighter tomorrow</Text></View>
         <Pressable accessibilityRole="button" accessibilityLabel="Open settings" onPress={() => router.push('/settings')} style={({ pressed }) => [styles.settingsButton, pressed && styles.settingsPressed]}>
           <Ionicons name="settings" size={28} color="#168CE8" />
         </Pressable>
       </View>
       <View style={styles.welcome}>
         <View style={styles.gardenWelcome}>
-          <View style={styles.gardenSky}>
-            <Text style={styles.gardenCloud}>☁️</Text>
-            <Text style={styles.gardenSun}>☀️</Text>
+          <View style={styles.skyCloudLeft}><Text style={styles.cloudText}>☁️</Text></View>
+          <View style={styles.skyCloudRight}><Text style={styles.cloudText}>☁️</Text></View>
+          <View style={styles.sunCircle}>
+            <Text style={styles.sunFace}>☀️</Text>
           </View>
-          <Text style={styles.gardenTitle}>Welcome{adultName ? ', ' + adultName : ''}!</Text>
-          <Text style={styles.gardenSubtitle}>Let's grow skills for a brighter, more independent tomorrow.</Text>
-          <View style={styles.gardenBottom}>
-            <Text style={styles.gardenFlowers}>🌷 🌼 🌻</Text>
-            <Text style={styles.gardenSprout}>🌱</Text>
-            <Text style={styles.gardenWater}>💧</Text>
+          <View style={styles.welcomeSign}>
+            <Text style={styles.gardenTitle}>Welcome{adultName ? ', ' + adultName : ''}!</Text>
+            <Text style={styles.gardenSubtitle}>Let's grow skills for a brighter, more independent tomorrow.</Text>
+          </View>
+          <View style={styles.gardenLandscape}>
+            <View style={styles.hillBack} />
+            <View style={styles.hillFront} />
+            <Text style={styles.flowerLeft}>🌷🌼</Text>
+            <Text style={styles.growingPlants}>🌱🌿🌻</Text>
+            <Text style={styles.wateringCan}>🪴💧</Text>
           </View>
         </View>
         <Pressable accessibilityRole="button" accessibilityLabel="Edit student profile" onPress={() => router.push('/student-profile')} style={styles.studentBanner}>
@@ -95,10 +106,10 @@ export default function HomeScreen() {
         </Pressable>
       </View>
       {cards.map((card) => (
-        <PressableCard key={card.title} style={styles.card} onPress={() => router.push(card.route)}>
-          <View style={[styles.iconWrap, { backgroundColor: card.tint }]}><Ionicons name={card.icon} size={30} color={card.color} /></View>
+        <PressableCard key={card.title} style={[styles.card, { backgroundColor: card.tint }]} onPress={() => router.push(card.route)}>
+          <View style={[styles.iconWrap, { backgroundColor: card.tint }]}><Text style={styles.cardEmoji}>{card.emoji}</Text></View>
           <View style={styles.cardText}><Text style={styles.cardTitle}>{card.title}</Text><Text style={styles.cardSubtitle}>{card.subtitle}</Text></View>
-          <Ionicons name="chevron-forward" size={22} color="#7B8794" />
+          <Ionicons name="chevron-forward" size={22} color="#14385D" />
         </PressableCard>
       ))}
       <Text style={styles.footer}>Small steps. Big progress. 💚</Text>
@@ -107,25 +118,33 @@ export default function HomeScreen() {
 }
 
 const styles = StyleSheet.create({
-  page: { flex: 1, backgroundColor: '#EEF8FF' }, content: { paddingBottom: 36 },
-  top: { backgroundColor: '#FFF', paddingTop: 56, paddingBottom: 24, paddingHorizontal: 24, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', borderBottomLeftRadius: 32, borderBottomRightRadius: 32 },
-  brand: { fontSize: 27, fontWeight: '800', color: '#245A87' }, tag: { fontSize: 13, color: '#69778A', marginTop: 3 },
-  settingsButton: { width: 44, height: 44, borderRadius: 22, alignItems: 'center', justifyContent: 'center' }, settingsPressed: { backgroundColor: '#EAF5FF' },
-  welcome: { paddingHorizontal: 16, paddingTop: 20, paddingBottom: 8 },
-  gardenWelcome: { borderRadius: 24, backgroundColor: '#E5F7DC', paddingHorizontal: 22, paddingTop: 10, paddingBottom: 10, overflow: 'hidden', borderWidth: 1, borderColor: '#BEE8C0' },
-  gardenSky: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', height: 54 },
-  gardenCloud: { fontSize: 31 },
-  gardenSun: { fontSize: 46 },
-  gardenTitle: { fontSize: 30, fontWeight: '900', color: '#174D3B', marginTop: 1 },
-  gardenSubtitle: { fontSize: 16, lineHeight: 23, color: '#345D50', marginTop: 8, maxWidth: 320 },
-  gardenBottom: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 12 },
-  gardenFlowers: { fontSize: 24 },
-  gardenSprout: { fontSize: 35 },
-  gardenWater: { fontSize: 24 }, title: { fontSize: 28, fontWeight: '800', color: '#171B34' }, subtitle: { fontSize: 16, color: '#7A8495', marginTop: 6 },
-  studentBanner: { marginTop: 24, backgroundColor: '#FFF', borderRadius: 20, padding: 16, flexDirection: 'row', alignItems: 'center', gap: 12, borderWidth: 1, borderColor: '#DDECF8' },
+  page: { flex: 1, backgroundColor: '#FAFCFF' },
+  content: { paddingBottom: 36 },
+  top: { backgroundColor: '#FFF', paddingTop: 56, paddingBottom: 19, paddingHorizontal: 20, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', borderBottomLeftRadius: 24, borderBottomRightRadius: 24 },
+  brand: { fontSize: 23, fontWeight: '900', color: '#153E64' },
+  tag: { fontSize: 12, color: '#69778A', marginTop: 3 },
+  settingsButton: { width: 44, height: 44, borderRadius: 22, alignItems: 'center', justifyContent: 'center' },
+  settingsPressed: { backgroundColor: '#EAF5FF' },
+  welcome: { paddingHorizontal: 16, paddingTop: 14, paddingBottom: 4 },
+  gardenWelcome: { height: 246, borderRadius: 25, backgroundColor: '#8FD7FC', overflow: 'hidden', position: 'relative' },
+  skyCloudLeft: { position: 'absolute', left: 12, top: 0 },
+  skyCloudRight: { position: 'absolute', right: 76, top: 19 },
+  cloudText: { fontSize: 37 },
+  sunCircle: { position: 'absolute', top: 4, right: 6, width: 90, height: 90, alignItems: 'center', justifyContent: 'center' },
+  sunFace: { fontSize: 68 },
+  welcomeSign: { position: 'absolute', top: 49, left: 15, right: 73, zIndex: 2, backgroundColor: '#FFF9E9', paddingHorizontal: 16, paddingVertical: 14, borderRadius: 19, borderWidth: 2, borderColor: '#F0E4BC', shadowColor: '#476B45', shadowOpacity: 0.12, shadowRadius: 8, elevation: 2 },
+  gardenTitle: { fontSize: 26, fontWeight: '900', color: '#113660' },
+  gardenSubtitle: { fontSize: 13, lineHeight: 19, color: '#3C5874', marginTop: 6 },
+  gardenLandscape: { position: 'absolute', left: 0, right: 0, bottom: 0, height: 84, overflow: 'hidden' },
+  hillBack: { position: 'absolute', left: -30, bottom: -45, width: '125%', height: 115, backgroundColor: '#A9DB80', borderRadius: 90 },
+  hillFront: { position: 'absolute', left: -25, bottom: -66, width: '120%', height: 105, backgroundColor: '#6FC774', borderRadius: 80 },
+  flowerLeft: { position: 'absolute', bottom: 5, left: 12, fontSize: 30 },
+  growingPlants: { position: 'absolute', bottom: 4, left: '40%', fontSize: 31 },
+  wateringCan: { position: 'absolute', bottom: 7, right: 10, fontSize: 27 },
+  studentBanner: { marginTop: 12, backgroundColor: '#E4F2FF', borderRadius: 20, padding: 16, flexDirection: 'row', alignItems: 'center', gap: 12, borderWidth: 1, borderColor: '#DDECF8' },
   studentAvatar: { width: 54, height: 54, borderRadius: 27, backgroundColor: '#E9F8F0', alignItems: 'center', justifyContent: 'center' }, studentEmoji: { fontSize: 29 }, studentBannerText: { flex: 1 },
   studentLabel: { fontSize: 11, fontWeight: '800', letterSpacing: 0.8, color: '#438A6A' }, studentName: { fontSize: 17, fontWeight: '800', color: '#17213A', marginTop: 3 }, studentHint: { fontSize: 12, color: '#718096', marginTop: 2 },
-  card: { marginHorizontal: 16, marginTop: 14, minHeight: 108, backgroundColor: '#FFF', padding: 16, flexDirection: 'row', alignItems: 'center', gap: 14, shadowColor: '#000', shadowOpacity: 0.05, shadowRadius: 12, elevation: 2 },
-  iconWrap: { width: 58, height: 58, borderRadius: 29, alignItems: 'center', justifyContent: 'center' }, cardText: { flex: 1 }, cardTitle: { fontSize: 18, fontWeight: '700', color: '#171B34' }, cardSubtitle: { fontSize: 14, lineHeight: 20, color: '#7A8495', marginTop: 4 },
+  card: { marginHorizontal: 16, marginTop: 12, minHeight: 102, padding: 16, flexDirection: 'row', alignItems: 'center', gap: 14, shadowColor: '#000', shadowOpacity: 0.05, shadowRadius: 12, elevation: 2 },
+  iconWrap: { width: 65, height: 65, borderRadius: 18, alignItems: 'center', justifyContent: 'center' }, cardEmoji: { fontSize: 39 }, cardText: { flex: 1 }, cardTitle: { fontSize: 19, fontWeight: '800', color: '#171B34' }, cardSubtitle: { fontSize: 14, lineHeight: 20, color: '#7A8495', marginTop: 4 },
   footer: { textAlign: 'center', marginTop: 34, fontSize: 16, color: '#47749A', fontStyle: 'italic' },
 });
