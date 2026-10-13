@@ -116,7 +116,7 @@ export default function YourSkills() {
         <Pressable onPress={() => router.back()}>
           <Ionicons name="chevron-back" size={28} />
         </Pressable>
-        <Text style={s.title}>Your Skills</Text>
+        <Text style={s.title}>My Skills</Text>
         <View style={{ width: 28 }} />
       </View>
 
