@@ -1,6 +1,9 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
+  Keyboard,
+  KeyboardAvoidingView,
+  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -29,6 +32,13 @@ const genericSteps = [
 ];
 
 export default function SkillStepEditor() {
+  const scrollRef = useRef(null);
+  const [keyboardOpen, setKeyboardOpen] = useState(false);
+  useEffect(() => {
+    const show = Keyboard.addListener('keyboardDidShow', () => setKeyboardOpen(true));
+    const hide = Keyboard.addListener('keyboardDidHide', () => setKeyboardOpen(false));
+    return () => { show.remove(); hide.remove(); };
+  }, []);
   const { skillId } = useLocalSearchParams();
   const user = auth.currentUser;
 
@@ -206,10 +216,13 @@ export default function SkillStepEditor() {
   }
 
   return (
+    <KeyboardAvoidingView style={s.page} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
     <ScrollView
+      ref={scrollRef}
       style={s.page}
-      contentContainerStyle={s.content}
+      contentContainerStyle={[s.content, keyboardOpen && { paddingBottom: 300 }]}
       keyboardShouldPersistTaps="handled"
+      keyboardDismissMode="interactive"
     >
       <View style={s.header}>
         <Pressable onPress={() => router.back()}>
@@ -246,6 +259,10 @@ export default function SkillStepEditor() {
               value={step}
               onChangeText={(value) => updateStep(index, value)}
               multiline
+              onFocus={(event) => {
+                const handle = event.nativeEvent.target;
+                setTimeout(() => scrollRef.current?.scrollResponderScrollNativeHandleToKeyboard?.(handle, 145, true), 200);
+              }}
               textAlignVertical="top"
               placeholder={`Step ${index + 1}`}
             />
@@ -299,6 +316,7 @@ export default function SkillStepEditor() {
         </Pressable>
       </View>
     </ScrollView>
+    </KeyboardAvoidingView>
   );
 }
 
