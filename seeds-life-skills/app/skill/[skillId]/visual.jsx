@@ -18,6 +18,7 @@ import { getBytes, getDownloadURL, listAll, ref as storageRef } from 'firebase/s
 import * as ImagePicker from 'expo-image-picker';
 import * as Print from 'expo-print';
 import * as Sharing from 'expo-sharing';
+import * as MediaLibrary from 'expo-media-library';
 import * as FileSystem from 'expo-file-system/legacy';
 import { captureRef } from 'react-native-view-shot';
 
@@ -1202,21 +1203,15 @@ export default function VisualTemplateBuilder() {
     try {
       setWorking(true);
       const images = await saveNativePageImages();
-      const available = await Sharing.isAvailableAsync();
-      if (!available) {
-        Alert.alert('Saved on device', 'Printable images were saved locally in the app.');
+      const permission = await MediaLibrary.requestPermissionsAsync(true);
+      if (!permission.granted) {
+        Alert.alert('Photos access needed', 'Please allow the app to add photos and try again.');
         return;
       }
-      // Share one page at a time through the native share sheet.
-      // All pages remain saved in the app's private document directory.
-      await Sharing.shareAsync(images[0], {
-        mimeType: 'image/png',
-        dialogTitle: 'Share visual schedule page 1',
-        UTI: 'public.png',
-      });
-      if (images.length > 1) {
-        Alert.alert('All pages saved', images.length + ' printable pages were saved on this device. Use Print Template to print all pages together.');
+      for (const uri of images) {
+        await MediaLibrary.saveToLibraryAsync(uri);
       }
+      Alert.alert('Saved to Photos', images.length + ' pages saved to iPhone Photos.');
     } catch (error) {
       console.error('Share template error:', error);
       Alert.alert('Could not share', 'Please try again.');
@@ -1608,7 +1603,7 @@ export default function VisualTemplateBuilder() {
             color={selectedBackground.accent}
           />
           <Text style={[s.secondaryText, { color: selectedBackground.accent }]}>
-            {Platform.OS === 'web' ? 'Download Images' : 'Save Images & Share'}
+            {Platform.OS === 'web' ? 'Download Images' : 'Save Images to Photos'}
           </Text>
         </Pressable>
       </View>
