@@ -71,8 +71,19 @@ export default function HomeScreen() {
         </Pressable>
       </View>
       <View style={styles.welcome}>
-        <Text style={styles.title}>Welcome{adultName ? `, ${adultName}` : ''}! 👋</Text>
-        <Text style={styles.subtitle}>We are here to help you support your child’s success.</Text>
+        <View style={styles.gardenWelcome}>
+          <View style={styles.gardenSky}>
+            <Text style={styles.gardenCloud}>☁️</Text>
+            <Text style={styles.gardenSun}>☀️</Text>
+          </View>
+          <Text style={styles.gardenTitle}>Welcome{adultName ? ', ' + adultName : ''}!</Text>
+          <Text style={styles.gardenSubtitle}>Let's grow skills for a brighter, more independent tomorrow.</Text>
+          <View style={styles.gardenBottom}>
+            <Text style={styles.gardenFlowers}>🌷 🌼 🌻</Text>
+            <Text style={styles.gardenSprout}>🌱</Text>
+            <Text style={styles.gardenWater}>💧</Text>
+          </View>
+        </View>
         <Pressable accessibilityRole="button" accessibilityLabel="Edit student profile" onPress={() => router.push('/student-profile')} style={styles.studentBanner}>
           <View style={styles.studentAvatar}><Text style={styles.studentEmoji}>{profile.avatar || '🌱'}</Text></View>
           <View style={styles.studentBannerText}>
@@ -100,7 +111,17 @@ const styles = StyleSheet.create({
   top: { backgroundColor: '#FFF', paddingTop: 56, paddingBottom: 24, paddingHorizontal: 24, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', borderBottomLeftRadius: 32, borderBottomRightRadius: 32 },
   brand: { fontSize: 27, fontWeight: '800', color: '#245A87' }, tag: { fontSize: 13, color: '#69778A', marginTop: 3 },
   settingsButton: { width: 44, height: 44, borderRadius: 22, alignItems: 'center', justifyContent: 'center' }, settingsPressed: { backgroundColor: '#EAF5FF' },
-  welcome: { paddingHorizontal: 22, paddingTop: 36, paddingBottom: 16 }, title: { fontSize: 28, fontWeight: '800', color: '#171B34' }, subtitle: { fontSize: 16, color: '#7A8495', marginTop: 6 },
+  welcome: { paddingHorizontal: 16, paddingTop: 20, paddingBottom: 8 },
+  gardenWelcome: { borderRadius: 24, backgroundColor: '#E5F7DC', paddingHorizontal: 22, paddingTop: 10, paddingBottom: 10, overflow: 'hidden', borderWidth: 1, borderColor: '#BEE8C0' },
+  gardenSky: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', height: 54 },
+  gardenCloud: { fontSize: 31 },
+  gardenSun: { fontSize: 46 },
+  gardenTitle: { fontSize: 30, fontWeight: '900', color: '#174D3B', marginTop: 1 },
+  gardenSubtitle: { fontSize: 16, lineHeight: 23, color: '#345D50', marginTop: 8, maxWidth: 320 },
+  gardenBottom: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 12 },
+  gardenFlowers: { fontSize: 24 },
+  gardenSprout: { fontSize: 35 },
+  gardenWater: { fontSize: 24 }, title: { fontSize: 28, fontWeight: '800', color: '#171B34' }, subtitle: { fontSize: 16, color: '#7A8495', marginTop: 6 },
   studentBanner: { marginTop: 24, backgroundColor: '#FFF', borderRadius: 20, padding: 16, flexDirection: 'row', alignItems: 'center', gap: 12, borderWidth: 1, borderColor: '#DDECF8' },
   studentAvatar: { width: 54, height: 54, borderRadius: 27, backgroundColor: '#E9F8F0', alignItems: 'center', justifyContent: 'center' }, studentEmoji: { fontSize: 29 }, studentBannerText: { flex: 1 },
   studentLabel: { fontSize: 11, fontWeight: '800', letterSpacing: 0.8, color: '#438A6A' }, studentName: { fontSize: 17, fontWeight: '800', color: '#17213A', marginTop: 3 }, studentHint: { fontSize: 12, color: '#718096', marginTop: 2 },
