@@ -16,7 +16,7 @@ const cards = [
     route: '/general-strategies',
   },
   {
-    title: 'Your Skills',
+    title: 'My Skills',
     subtitle:
       'Practice the Independent Steps skills and customize steps for your child.',
     icon: 'apps-outline',
@@ -25,7 +25,7 @@ const cards = [
     route: '/all-skills',
   },
   {
-    title: 'Visual Templates',
+    title: 'My Visuals',
     subtitle:
       'Choose a skill, background, and add your own local photos.',
     icon: 'images-outline',
