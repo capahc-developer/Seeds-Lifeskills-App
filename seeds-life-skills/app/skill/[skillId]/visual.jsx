@@ -183,17 +183,26 @@ function personalizeStep(step, firstName) {
     cook: 'cooks', turn: 'turns', move: 'moves', clean: 'cleans',
     wait: 'waits', get: 'gets', start: 'starts', continue: 'continues',
     mix: 'mixes', open: 'opens', close: 'closes', leave: 'leaves', go: 'goes',
-    zip: 'zips',
+    zip: 'zips', choose: 'chooses', pick: 'picks', select: 'selects',
+    shop: 'shops', pay: 'pays', scan: 'scans', walk: 'walks',
+    buy: 'buys', carry: 'carries', count: 'counts',
+    ask: 'asks', read: 'reads', search: 'searches',
+    locate: 'locates', compare: 'compares', return: 'returns',
+    collect: 'collects', grab: 'grabs', pack: 'packs',
+    bag: 'bags', follow: 'follows', enter: 'enters',
+    exit: 'exits', visit: 'visits', identify: 'identifies',
     insert: 'inserts', line: 'lines', repeat: 'repeats', look: 'looks',
     make: 'makes', take: 'takes', brush: 'brushes', apply: 'applies',
     wipe: 'wipes', eat: 'eats', practice: 'practices', prepare: 'prepares',
   };
   // Preserve introductory safety qualifiers such as "With adult support as needed".
   const match = text.match(/^(With adult support as needed,\s*|With adult help,\s*)?([A-Za-z]+)\b(.*)$/i);
-  if (!match) return text;
+  if (!match) return `${firstName}: ${text}`;
   const [, qualifier = '', verb, rest] = match;
   const conjugated = verbs[verb.toLowerCase()];
-  if (!conjugated) return text;
+  // Keep the child's name even when a custom step uses an unfamiliar verb.
+  // A label avoids guessing grammar or changing the parent's instructions.
+  if (!conjugated) return `${firstName}: ${text}`;
   return qualifier
     ? `${firstName} ${conjugated} ${rest.trimStart()} ${qualifier.trim().replace(/,$/, '')}.`.replace(/\.\.$/, '.')
     : `${firstName} ${conjugated}${rest}`;
@@ -1559,13 +1568,14 @@ export default function VisualTemplateBuilder() {
         </View>
       )}
       <View style={s.actions}>
+        <Text style={{ fontSize: 12, fontWeight: '800', color: selectedBackground.muted, marginTop: 6 }}>EDITING</Text>
         <Pressable
           style={[s.primaryButton, { backgroundColor: '#7559E8' }, (!photosRestored || savingPhotos) && s.disabled]}
           onPress={savePhotosLocally}
           disabled={!photosRestored || savingPhotos}
         >
           <Ionicons name="save-outline" size={20} color="#FFFFFF" />
-          <Text style={s.primaryText}>{savingPhotos ? 'Saving Photos...' : 'Save Photos on This Device'}</Text>
+          <Text style={s.primaryText}>{savingPhotos ? 'Saving Photos...' : 'Save Step Photos'}</Text>
         </Pressable>
         {Platform.OS === 'web' && selectedBackground.imageUrl && (
           <Pressable onPress={chooseLocalPrintBackground} style={{padding:14,backgroundColor:'#FFFFFF',borderRadius:12,alignItems:'center'}}>
@@ -1573,6 +1583,7 @@ export default function VisualTemplateBuilder() {
             <Text style={{fontSize:12,color:selectedBackground.muted,textAlign:'center'}}>Use a saved copy of the selected background if browser access is blocked.</Text>
           </Pressable>
         )}
+        <Text style={{ fontSize: 12, fontWeight: '800', color: selectedBackground.muted, marginTop: 14 }}>FINISHED VISUAL SCHEDULE</Text>
         <Pressable
           style={[
             s.primaryButton,
@@ -1583,7 +1594,7 @@ export default function VisualTemplateBuilder() {
           disabled={working}
         >
           <Ionicons name="print-outline" size={20} color="#FFFFFF" />
-          <Text style={s.primaryText}>Print Template</Text>
+          <Text style={s.primaryText}>Print Visual Schedule</Text>
         </Pressable>
 
         <Pressable
@@ -1604,7 +1615,7 @@ export default function VisualTemplateBuilder() {
             color={selectedBackground.accent}
           />
           <Text style={[s.secondaryText, { color: selectedBackground.accent }]}>
-            {Platform.OS === 'web' ? 'Download Images' : 'Save Images to Photos'}
+            {Platform.OS === 'web' ? 'Download Schedule Images' : 'Save Schedule to Photos'}
           </Text>
         </Pressable>
       </View>
