@@ -1166,6 +1166,19 @@ export default function VisualTemplateBuilder() {
     await Print.printAsync({ html });
   }
 
+  function isPrintCancellation(error) {
+    const message = String(error?.message || error || '').toLowerCase();
+    const code = String(error?.code || '').toLowerCase();
+    return message.includes('printing did not complete') ||
+      message.includes('printing did not comlete') ||
+      message.includes('printcompleteexception') ||
+      message.includes('print cancelled') ||
+      message.includes('print canceled') ||
+      message.includes('user cancelled') ||
+      message.includes('user canceled') ||
+      code.includes('cancel');
+  }
+
   async function printTemplate() {
     if (Platform.OS === 'web') {
       const tab = window.open('', '_blank');
@@ -1187,8 +1200,11 @@ export default function VisualTemplateBuilder() {
       const images = await saveNativePageImages();
       await printNativePageImages(images);
     } catch (error) {
-      console.error('Print template error:', error);
-      Alert.alert('Could not print', 'Please try again.');
+      // Closing the native print sheet is a normal user action, not a print failure.
+      if (!isPrintCancellation(error)) {
+        console.error('Print template error:', error);
+        Alert.alert('Could not print', 'Please try again.');
+      }
     } finally {
       setWorking(false);
     }
@@ -1601,8 +1617,8 @@ export default function VisualTemplateBuilder() {
           style={[
             s.secondaryButton,
             {
-              backgroundColor: selectedBackground.cardBg,
-              borderColor: selectedBackground.border,
+              backgroundColor: '#1D7D69',
+              borderColor: '#166B5A',
             },
             working && s.disabled,
           ]}
@@ -1610,18 +1626,18 @@ export default function VisualTemplateBuilder() {
           disabled={working}
         >
           <Ionicons
-            name="share-outline"
+            name="download-outline"
             size={20}
-            color={selectedBackground.accent}
+            color="#FFFFFF"
           />
-          <Text style={[s.secondaryText, { color: selectedBackground.accent }]}>
+          <Text style={[s.secondaryText, { color: '#FFFFFF' }]}>
             {Platform.OS === 'web' ? 'Download Schedule Images' : 'Save Schedule to Photos'}
           </Text>
         </Pressable>
       </View>
 
       <Text style={[s.localNote, { color: selectedBackground.muted }]}>
-        Tap Save Photos to keep selected photos on this device for next time.
+        Tap Save Step Photos to keep selected photos on this device for next time.
         Unsaved changes are lost when you leave. No child photos are uploaded to Firebase.
       </Text>
     </ScrollView>
