@@ -11,7 +11,7 @@ export default function VisualTemplates() {
         <Pressable onPress={() => router.back()}>
           <Ionicons name="chevron-back" size={28} color="#17213A" />
         </Pressable>
-        <Text style={s.title}>Visual Templates</Text>
+        <Text style={s.title}>My Visuals</Text>
         <View style={{ width: 28 }} />
       </View>
 
