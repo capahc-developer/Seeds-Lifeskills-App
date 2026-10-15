@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import {
-  ActivityIndicator, Alert, Animated, AccessibilityInfo, Easing, Pressable, ScrollView, StyleSheet,
-  Text, TextInput, View, useWindowDimensions,
+  ActivityIndicator, Alert, Animated, AccessibilityInfo, Easing, KeyboardAvoidingView, Platform,
+  Pressable, ScrollView, StyleSheet, Text, TextInput, View, useWindowDimensions,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
@@ -139,8 +139,15 @@ export default function PracticeLogScreen() {
   const contentWidth = Math.min(width - 28, 520);
   return (
     <ScreenContainer>
+      <KeyboardAvoidingView
+        style={{ flex: 1 }}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 8 : 0}
+      >
       <ScrollView style={styles.page} contentContainerStyle={[styles.content, { width: contentWidth }]}
-        keyboardShouldPersistTaps="handled">
+        keyboardShouldPersistTaps="handled"
+        keyboardDismissMode={Platform.OS === 'ios' ? 'interactive' : 'on-drag'}
+        automaticallyAdjustKeyboardInsets={Platform.OS === 'ios'}>
         {screen === 'home' && <>
           <View style={styles.topRow}>
             <Pressable onPress={() => router.canGoBack() ? router.back() : router.replace('/')} style={styles.back}><Ionicons name="chevron-back" size={22} color={PURPLE}/><Text style={styles.backText}>Back</Text></Pressable>
@@ -230,6 +237,7 @@ export default function PracticeLogScreen() {
           <Pressable style={styles.textButton} onPress={() => setScreen('home')}><Text style={styles.smallLink}>Back to Practice Log</Text></Pressable>
         </View>}
       </ScrollView>
+      </KeyboardAvoidingView>
     </ScreenContainer>
   );
 }
@@ -340,7 +348,7 @@ function CalendarPicker({ month, selectedDate, onMonthChange, onSelect }) {
 
 const styles = StyleSheet.create({
   page: { flex: 1, backgroundColor: CREAM },
-  content: { alignSelf: 'center', paddingTop: 12, paddingBottom: 60 },
+  content: { alignSelf: 'center', paddingTop: 12, paddingBottom: 180 },
   topRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', minHeight: 48, marginBottom: 12 },
   back: { width: 65, flexDirection: 'row', alignItems: 'center' }, backText: { color: PURPLE, fontWeight: '600' },
   topTitle: { fontSize: 21, fontWeight: '800', color: NAVY },

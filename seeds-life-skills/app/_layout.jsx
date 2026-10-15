@@ -7,7 +7,6 @@ import { auth } from "@/lib/firebase";
 
 import { ProgressProvider } from "../context/ProgressContext";
 import { StudentProfileProvider } from "../context/StudentProfileContext";
-import FloatingAssistant from "../components/FloatingAssistant";
 
 export default function RootLayout() {
   const router = useRouter();
@@ -71,7 +70,6 @@ export default function RootLayout() {
             <Stack.Screen name="login" />
             <Stack.Screen name="index" />
           </Stack>
-          {user && <FloatingAssistant />}
         </View>
       </StudentProfileProvider>
     </ProgressProvider>

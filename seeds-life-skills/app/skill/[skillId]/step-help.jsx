@@ -1,7 +1,9 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
+  KeyboardAvoidingView,
+  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -35,6 +37,7 @@ export default function StepHelp() {
   const [answer, setAnswer] = useState('');
   const [loading, setLoading] = useState(true);
   const [asking, setAsking] = useState(false);
+  const scrollRef = useRef(null);
 
   useEffect(() => {
     const load = async () => {
@@ -168,7 +171,19 @@ export default function StepHelp() {
   }
 
   return (
-    <ScrollView style={s.page} contentContainerStyle={s.content}>
+    <KeyboardAvoidingView
+      style={s.keyboardSafe}
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      keyboardVerticalOffset={Platform.OS === 'ios' ? 8 : 0}
+    >
+      <ScrollView
+        ref={scrollRef}
+        style={s.page}
+        contentContainerStyle={s.content}
+        keyboardShouldPersistTaps="handled"
+        keyboardDismissMode={Platform.OS === 'ios' ? 'interactive' : 'on-drag'}
+        automaticallyAdjustKeyboardInsets={Platform.OS === 'ios'}
+      >
       <View style={s.header}>
         <Pressable onPress={() => router.back()}>
           <Ionicons name="chevron-back" size={28} color="#17213A" />
@@ -229,6 +244,11 @@ export default function StepHelp() {
         placeholder="Example: They can hold the coat and find the zipper, but they cannot get it started before pulling up."
         placeholderTextColor="#98A0AD"
         style={s.input}
+        onFocus={() => {
+          setTimeout(() => {
+            scrollRef.current?.scrollToEnd({ animated: true });
+          }, 250);
+        }}
       />
 
       <Pressable
@@ -273,13 +293,15 @@ export default function StepHelp() {
         AI guidance is a brainstorming tool for caregivers. Review each suggestion and
         use only what is appropriate for your child.
       </Text>
-    </ScrollView>
+      </ScrollView>
+    </KeyboardAvoidingView>
   );
 }
 
 const s = StyleSheet.create({
+  keyboardSafe: { flex: 1, backgroundColor: '#F7F5FF' },
   page: { flex: 1, backgroundColor: '#F7F5FF' },
-  content: { paddingBottom: 44 },
+  content: { paddingBottom: 180 },
   header: {
     paddingTop: 56,
     paddingHorizontal: 20,
