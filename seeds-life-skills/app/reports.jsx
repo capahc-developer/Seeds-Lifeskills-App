@@ -2,6 +2,7 @@ import React, { useCallback, useMemo, useState } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { router, useFocusEffect } from 'expo-router';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { doc, getDoc, getDocs, orderBy, query } from 'firebase/firestore';
 import { auth, db } from '../lib/firebase';
 import { practiceLogsForCurrentUser } from '../lib/userData';
@@ -38,6 +39,7 @@ function LogNote({ label, value }) {
 }
 
 export default function Reports() {
+  const insets = useSafeAreaInsets();
   const [logs, setLogs] = useState([]);
   const [plants, setPlants] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -93,9 +95,9 @@ export default function Reports() {
   const availableWater = Math.max(0, logs.length - waterUsed);
 
   return (
-    <ScrollView style={styles.page} contentContainerStyle={styles.content}>
+    <ScrollView style={styles.page} contentContainerStyle={[styles.content, { paddingTop: insets.top + 12 }]}>
       <View style={styles.header}>
-        <Pressable onPress={() => router.back()} accessibilityLabel="Back" style={styles.back}>
+        <Pressable onPress={() => router.back()} accessibilityLabel="Back" style={styles.back} hitSlop={8} accessibilityRole="button">
           <Ionicons name="chevron-back" size={23} color={PURPLE} />
           <Text style={styles.backText}>Back</Text>
         </Pressable>
@@ -179,8 +181,8 @@ const styles = StyleSheet.create({
   page: { flex: 1, backgroundColor: '#FFF9F0' },
   content: { paddingHorizontal: 16, paddingBottom: 50, alignItems: 'center' },
   column: { width: '100%', maxWidth: 760, gap: 18 },
-  header: { width: '100%', maxWidth: 760, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingTop: 22 },
-  back: { width: 75, flexDirection: 'row', alignItems: 'center' },
+  header: { width: '100%', maxWidth: 760, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  back: { width: 75, minHeight: 44, flexDirection: 'row', alignItems: 'center' },
   backText: { color: PURPLE, fontSize: 15, fontWeight: '600' },
   title: { fontSize: 24, fontWeight: '800', color: NAVY },
   subtitle: { color: '#75819B', textAlign: 'center', fontSize: 14, lineHeight: 21, marginTop: 10, marginBottom: 24, maxWidth: 520 },
