@@ -7,9 +7,12 @@ import {
   Pressable,
   Alert,
   ActivityIndicator,
+  Keyboard,
+  KeyboardAvoidingView,
+  Platform,
 } from 'react-native';
 
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useStudentProfile } from '../context/StudentProfileContext';
@@ -61,6 +64,17 @@ const genderOptions = [
 
 
 export default function StudentProfile() {
+  const scrollRef = useRef(null);
+  const [keyboardOpen, setKeyboardOpen] = useState(false);
+  useEffect(() => {
+    const show = Keyboard.addListener('keyboardDidShow', () => setKeyboardOpen(true));
+    const hide = Keyboard.addListener('keyboardDidHide', () => setKeyboardOpen(false));
+    return () => { show.remove(); hide.remove(); };
+  }, []);
+  const scrollInputIntoView = (event) => {
+    const handle = event.nativeEvent.target;
+    setTimeout(() => scrollRef.current?.scrollResponderScrollNativeHandleToKeyboard?.(handle, 145, true), 250);
+  };
 
   const {
     profile,
@@ -195,13 +209,13 @@ export default function StudentProfile() {
 
 
   return (
-
+    <KeyboardAvoidingView style={s.page} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
     <ScrollView
+      ref={scrollRef}
       style={s.page}
-      contentContainerStyle={
-        s.content
-      }
+      contentContainerStyle={[s.content, keyboardOpen && { paddingBottom: 300 }]}
       keyboardShouldPersistTaps="handled"
+      keyboardDismissMode="interactive"
     >
 
       {/* HEADER */}
@@ -313,6 +327,7 @@ export default function StudentProfile() {
       {/* NAME */}
 
       <TextInput
+        onFocus={scrollInputIntoView}
         style={[
           s.input,
           nameError &&
@@ -352,6 +367,7 @@ export default function StudentProfile() {
       {/* AGE */}
 
       <TextInput
+        onFocus={scrollInputIntoView}
         style={[
           s.input,
           ageError &&
@@ -487,6 +503,8 @@ export default function StudentProfile() {
 
 
           <TextInput
+            onFocus={scrollInputIntoView}
+        onFocus={scrollInputIntoView}
             style={s.textarea}
             multiline
             value={
@@ -568,7 +586,7 @@ export default function StudentProfile() {
       </Pressable>
 
     </ScrollView>
-
+    </KeyboardAvoidingView>
   );
 
 }
