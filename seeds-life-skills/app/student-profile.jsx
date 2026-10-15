@@ -504,7 +504,6 @@ export default function StudentProfile() {
 
           <TextInput
             onFocus={scrollInputIntoView}
-        onFocus={scrollInputIntoView}
             style={s.textarea}
             multiline
             value={
