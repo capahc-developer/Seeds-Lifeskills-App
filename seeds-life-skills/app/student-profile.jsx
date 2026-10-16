@@ -19,7 +19,11 @@ import { useStudentProfile } from '../context/StudentProfileContext';
 import ValidationBanner from '../components/ValidationBanner';
 
 
-const avatars = ['🌱', '🌟', '🦋', '🚀', '🐻', '🎨'];
+const avatars = [...new Set([
+  '🌱', '🌟', '🦋', '🚀', '🐻', '🎨',
+  // Additional animal avatars; preserve all existing selections.
+  '🐶', '🐱', '🐰', '🐹', '🐭', '🐮', '🐷', '🐴', '🐑', '🐐', '🐔', '🐣', '🦁', '🐯', '🐻', '🐼', '🐨', '🦊', '🐺', '🦝', '🦓', '🦒', '🐘', '🦛', '🐬', '🐳', '🦈', '🐙', '🦀', '🦞', '🐠', '🐡', '🦭', '🪼', '🐢', '🦑', '🐧', '🦉', '🦜', '🦩', '🦚', '🦆', '🦢', '🐝', '🦋', '🐞', '🐌', '🐛', '🦖', '🦕', '🦄', '🐉', '🐲', '🦇', '🦂', '🦎', '🐸', '🐊', '🦦', '🦥'
+])];
 
 
 const fields = [
@@ -266,6 +270,7 @@ export default function StudentProfile() {
       </Text>
 
 
+      <ScrollView style={s.avatarPickerScroll} nestedScrollEnabled keyboardShouldPersistTaps="handled">
       <View style={s.avatarOptions}>
 
         {avatars.map(
@@ -304,6 +309,7 @@ export default function StudentProfile() {
         )}
 
       </View>
+      </ScrollView>
 
 
       {/* BASIC INFORMATION */}
@@ -646,6 +652,11 @@ const s = StyleSheet.create({
     fontWeight: '700',
   },
 
+
+  avatarPickerScroll: {
+    maxHeight: 220,
+    marginTop: 12,
+  },
 
   avatarOptions: {
     flexDirection: 'row',
