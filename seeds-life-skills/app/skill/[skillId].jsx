@@ -169,22 +169,6 @@ export default function Skill() {
         <Ionicons name="chevron-forward" size={22} color="#FFFFFF" />
       </Pressable>
 
-      <Pressable
-        accessibilityRole="link"
-        style={s.resourceCard}
-        onPress={() =>
-          Linking.openURL(skill.resourceUrl || 'https://www.capa-hc.org/seeds-2/')
-        }
-      >
-        <View style={s.resourceIcon}>
-          <Ionicons name="link-outline" size={22} color="#248A6B" />
-        </View>
-        <View style={{ flex: 1 }}>
-          <Text style={s.resourceTitle}>SEEDS Resources</Text>
-          <Text style={s.resourceText}>Open the full Independent Steps series</Text>
-        </View>
-        <Ionicons name="open-outline" size={19} color="#718096" />
-      </Pressable>
 
       <View style={s.card}>
         <View style={s.stepsHeading}>
