@@ -172,8 +172,8 @@ export default function StepHelp() {
   return (
     <KeyboardAvoidingView
       style={s.keyboardSafe}
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-      keyboardVerticalOffset={Platform.OS === 'ios' ? 8 : 0}
+      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      keyboardVerticalOffset={0}
     >
       <ScrollView
         style={s.page}
@@ -241,6 +241,7 @@ export default function StepHelp() {
         placeholder="Example: They can hold the coat and find the zipper, but they cannot get it started before pulling up."
         placeholderTextColor="#98A0AD"
         style={s.input}
+        scrollEnabled={false}
       />
 
       <Pressable
@@ -293,7 +294,7 @@ export default function StepHelp() {
 const s = StyleSheet.create({
   keyboardSafe: { flex: 1, backgroundColor: '#F7F5FF' },
   page: { flex: 1, backgroundColor: '#F7F5FF' },
-  content: { paddingBottom: 180 },
+  content: { paddingBottom: 32 },
   header: {
     paddingTop: 56,
     paddingHorizontal: 20,
