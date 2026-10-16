@@ -156,7 +156,7 @@ export default function GeneralStrategies() {
             </Text>
             <Pressable
               accessibilityRole="link"
-              accessibilityLabel="Watch Expert-Guided Teaching Strategies"
+              accessibilityLabel="Watch Psychologist-Guided Teaching Strategies"
               onPress={() =>
                 Linking.openURL('https://www.youtube.com/watch?v=VPt74UPW_HA')
               }
@@ -166,7 +166,7 @@ export default function GeneralStrategies() {
                 <Ionicons name="play-circle" size={36} color="#6553D5" />
               </View>
               <View style={{ flex: 1 }}>
-                <Text style={s.videoLinkTitle}>Watch Expert-Guided Teaching Strategies</Text>
+                <Text style={s.videoLinkTitle}>Watch Psychologist-Guided Teaching Strategies</Text>
                 <Text style={s.videoLinkText}>
                   Discover practical strategies to help your child learn new skills and build independence.
                 </Text>
