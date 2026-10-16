@@ -20,7 +20,7 @@ const cards = [
     title: 'My Skills',
     emoji: '📚',
     subtitle:
-      'Practice the Independent Steps skills and customize steps for your child.',
+      'Watch psychologist-guided instructional videos and practice personalized steps tailored to your child.',
     icon: 'apps-outline',
     tint: '#EEE9FF',
     color: '#7C5CE7',
