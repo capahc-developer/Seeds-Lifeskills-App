@@ -156,17 +156,37 @@ export default function GeneralStrategies() {
             </Text>
             <Pressable
               accessibilityRole="link"
+              accessibilityLabel="Watch Expert-Guided Teaching Strategies"
               onPress={() =>
                 Linking.openURL('https://www.youtube.com/watch?v=VPt74UPW_HA')
               }
               style={s.videoLink}
             >
-              <Ionicons name="play-circle-outline" size={22} color="#B42318" />
-              <View style={{ flex: 1 }}>
-                <Text style={s.videoLinkTitle}>General Strategies Video</Text>
-                <Text style={s.videoLinkText}>Watch on YouTube</Text>
+              <View style={s.videoIcon}>
+                <Ionicons name="play-circle" size={36} color="#6553D5" />
               </View>
-              <Ionicons name="open-outline" size={18} color="#718096" />
+              <View style={{ flex: 1 }}>
+                <Text style={s.videoLinkTitle}>Watch Expert-Guided Teaching Strategies</Text>
+                <Text style={s.videoLinkText}>
+                  Discover practical strategies to help your child learn new skills and build independence.
+                </Text>
+              </View>
+              <Ionicons name="chevron-forward" size={22} color="#FFFFFF" />
+            </Pressable>
+            <Pressable
+              accessibilityRole="link"
+              accessibilityLabel="Explore SEEDS Resources"
+              onPress={() => Linking.openURL('https://www.capa-hc.org/seeds-2/')}
+              style={s.seedsResourceLink}
+            >
+              <Ionicons name="open-outline" size={22} color="#718096" />
+              <View style={{ flex: 1 }}>
+                <Text style={s.seedsResourceTitle}>Explore SEEDS Resources</Text>
+                <Text style={s.seedsResourceText}>
+                  Visit the SEEDS website for additional resources and information.
+                </Text>
+              </View>
+              <Ionicons name="chevron-forward" size={20} color="#718096" />
             </Pressable>
           </View>
 
@@ -457,25 +477,34 @@ const s = StyleSheet.create({
   },
   videoLink: {
     marginTop: 14,
-    padding: 13,
-    borderRadius: 14,
-    backgroundColor: '#FFFFFF',
-    borderWidth: 1,
-    borderColor: '#DDEAF4',
+    padding: 16,
+    borderRadius: 18,
+    backgroundColor: '#6553D5',
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 10,
+    gap: 12,
   },
-  videoLinkTitle: {
-    fontSize: 14,
-    fontWeight: '800',
-    color: '#17213A',
+  videoIcon: {
+    width: 56,
+    height: 56,
+    borderRadius: 12,
+    backgroundColor: '#FFFFFF',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
-  videoLinkText: {
-    marginTop: 2,
-    fontSize: 12,
-    color: '#718096',
+  videoLinkTitle: { fontSize: 15, fontWeight: '800', color: '#FFFFFF' },
+  videoLinkText: { marginTop: 4, fontSize: 12, lineHeight: 17, color: '#F0EBFF' },
+  seedsResourceLink: {
+    marginTop: 12,
+    padding: 14,
+    borderRadius: 14,
+    backgroundColor: '#FFFFFF',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
   },
+  seedsResourceTitle: { fontSize: 14, fontWeight: '800', color: '#17213A' },
+  seedsResourceText: { marginTop: 4, fontSize: 12, lineHeight: 17, color: '#718096' },
   status: {
     padding: 40,
     alignItems: 'center',
