@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -37,7 +37,6 @@ export default function StepHelp() {
   const [answer, setAnswer] = useState('');
   const [loading, setLoading] = useState(true);
   const [asking, setAsking] = useState(false);
-  const scrollRef = useRef(null);
 
   useEffect(() => {
     const load = async () => {
@@ -177,12 +176,10 @@ export default function StepHelp() {
       keyboardVerticalOffset={Platform.OS === 'ios' ? 8 : 0}
     >
       <ScrollView
-        ref={scrollRef}
         style={s.page}
         contentContainerStyle={s.content}
         keyboardShouldPersistTaps="handled"
         keyboardDismissMode={Platform.OS === 'ios' ? 'interactive' : 'on-drag'}
-        automaticallyAdjustKeyboardInsets={Platform.OS === 'ios'}
       >
       <View style={s.header}>
         <Pressable onPress={() => router.back()}>
@@ -244,11 +241,6 @@ export default function StepHelp() {
         placeholder="Example: They can hold the coat and find the zipper, but they cannot get it started before pulling up."
         placeholderTextColor="#98A0AD"
         style={s.input}
-        onFocus={() => {
-          setTimeout(() => {
-            scrollRef.current?.scrollToEnd({ animated: true });
-          }, 250);
-        }}
       />
 
       <Pressable
