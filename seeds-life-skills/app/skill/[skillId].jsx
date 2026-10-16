@@ -149,21 +149,24 @@ export default function Skill() {
 
       <Pressable
         accessibilityRole="link"
-        style={s.resourceCard}
+        accessibilityLabel="Watch Psychologist-Guided Video"
+        style={s.videoCard}
         onPress={() =>
           Linking.openURL(
             skill.videoUrl || skill.resourceUrl || 'https://www.capa-hc.org/seeds-2/'
           )
         }
       >
-        <View style={s.resourceIcon}>
-          <Ionicons name="play-circle-outline" size={24} color="#248A6B" />
+        <View style={s.videoIcon}>
+          <Ionicons name="play-circle" size={36} color="#6553D5" />
         </View>
         <View style={{ flex: 1 }}>
-          <Text style={s.resourceTitle}>{skill.title} Video</Text>
-          <Text style={s.resourceText}>Watch this Independent Steps episode</Text>
+          <Text style={s.videoTitle}>Watch Psychologist-Guided Video</Text>
+          <Text style={s.videoText}>
+            Learn how to teach this skill with practical, step-by-step instruction.
+          </Text>
         </View>
-        <Ionicons name="open-outline" size={19} color="#718096" />
+        <Ionicons name="chevron-forward" size={22} color="#FFFFFF" />
       </Pressable>
 
       <Pressable
@@ -269,6 +272,26 @@ const s = StyleSheet.create({
     padding: 18,
   },
   cardTitle: { fontSize: 17, fontWeight: '800' },
+  videoCard: {
+    marginHorizontal: 16,
+    marginBottom: 14,
+    padding: 16,
+    borderRadius: 18,
+    backgroundColor: '#6553D5',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  videoIcon: {
+    width: 60,
+    height: 60,
+    borderRadius: 12,
+    backgroundColor: '#FFFFFF',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  videoTitle: { fontSize: 15, fontWeight: '800', color: '#FFFFFF' },
+  videoText: { marginTop: 4, fontSize: 12, lineHeight: 17, color: '#F0EBFF' },
   resourceCard: {
     marginHorizontal: 16,
     marginBottom: 14,
