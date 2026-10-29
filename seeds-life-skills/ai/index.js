@@ -92,6 +92,29 @@ exports.deleteAccountData = onCall(
           "No accessible Storage bucket found or no generated image files needed deletion."
         );
       }
+      
+      // Delete only generated visuals owned by this account.
+      // These records are stored at the top level of Firestore.
+      stage = "deleting user-generated visual records";
+
+      const visualsCollection = db.collection("generatedVisuals");
+
+      while (true) {
+        const visualDocs = await visualsCollection
+          .where("userId", "==", uid)
+          .limit(200)
+          .get();
+
+        if (visualDocs.empty) break;
+
+        const batch = db.batch();
+
+        visualDocs.docs.forEach((doc) => {
+          batch.delete(doc.ref);
+        });
+
+        await batch.commit();
+      }
 
       stage = "deleting Firestore profile and user data";
 
@@ -442,7 +465,7 @@ exports.chatAssistant = onCall(
         : {};
 
       studentContext = [
-        student.name ? `Student name/nickname: ${student.name}` : "",
+       // student.name ? `Student name/nickname: ${student.name}` : "", commented out for privacy considerations. will not send name to AI
         student.age != null ? `Age: ${student.age}` : "",
         student.strengths
           ? `Strengths: ${student.strengths}`
